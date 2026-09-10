@@ -1,19 +1,125 @@
 const db = require('../db');
 const { publishMissionStatus } = require('./telemetryBus');
 
-// Phase 2 scope only: enough to let the simulated adapter fly seeded
-// missions and report status. Full CRUD/dispatch lands in Phase 3.
-
 async function getById(id) {
   const { rows } = await db.query('SELECT * FROM missions WHERE id = $1', [id]);
   return rows[0] || null;
 }
 
-async function getAssignedOrInProgress() {
+// Only 'in_progress' missions were actually flying when the server went
+// down — 'assigned' just means a drone is picked but nobody has clicked
+// Dispatch yet, so it must NOT be auto-started on boot.
+async function getInProgress() {
   const { rows } = await db.query(
-    `SELECT * FROM missions WHERE status IN ('assigned', 'in_progress') ORDER BY created_at`
+    `SELECT * FROM missions WHERE status = 'in_progress' ORDER BY created_at`
   );
   return rows;
+}
+
+async function list({ status, droneId } = {}) {
+  const clauses = [];
+  const values = [];
+  let i = 1;
+
+  if (status) {
+    clauses.push(`status = $${i++}`);
+    values.push(status);
+  }
+  if (droneId) {
+    clauses.push(`drone_id = $${i++}`);
+    values.push(droneId);
+  }
+
+  const where = clauses.length ? `WHERE ${clauses.join(' AND ')}` : '';
+  const { rows } = await db.query(
+    `SELECT * FROM missions ${where} ORDER BY created_at DESC`,
+    values
+  );
+  return rows;
+}
+
+async function nextMissionCode() {
+  const { rows } = await db.query(`SELECT nextval('mission_code_seq') AS n`);
+  const datePart = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+  const seqPart = String(rows[0].n).padStart(4, '0');
+  return `MSN-${datePart}-${seqPart}`;
+}
+
+async function create({
+  droneId,
+  createdBy,
+  priority,
+  waypoints,
+  payloadDesc,
+  pickupAddress,
+  dropoffAddress,
+  notes,
+}) {
+  const code = await nextMissionCode();
+  const status = droneId ? 'assigned' : 'draft';
+
+  const { rows } = await db.query(
+    `INSERT INTO missions (
+       code, drone_id, created_by, status, priority, waypoints,
+       payload_desc, pickup_address, dropoff_address, notes
+     )
+     VALUES ($1, $2, $3, $4, COALESCE($5, 3), COALESCE($6, '[]'::jsonb), $7, $8, $9, $10)
+     RETURNING *`,
+    [
+      code,
+      droneId || null,
+      createdBy || null,
+      status,
+      priority,
+      waypoints ? JSON.stringify(waypoints) : null,
+      payloadDesc || null,
+      pickupAddress || null,
+      dropoffAddress || null,
+      notes || null,
+    ]
+  );
+  return rows[0];
+}
+
+async function update(id, fields) {
+  const allowed = {
+    drone_id: fields.droneId,
+    priority: fields.priority,
+    waypoints: fields.waypoints ? JSON.stringify(fields.waypoints) : undefined,
+    payload_desc: fields.payloadDesc,
+    pickup_address: fields.pickupAddress,
+    dropoff_address: fields.dropoffAddress,
+    notes: fields.notes,
+  };
+
+  const sets = [];
+  const values = [];
+  let i = 1;
+  for (const [column, value] of Object.entries(allowed)) {
+    if (value !== undefined) {
+      sets.push(`${column} = $${i++}`);
+      values.push(value);
+    }
+  }
+  if (!sets.length) return getById(id);
+
+  // Assigning a drone to a still-draft mission also moves it to 'assigned'.
+  if (allowed.drone_id !== undefined) {
+    sets.push(`status = CASE WHEN status = 'draft' AND $${i} IS NOT NULL THEN 'assigned' ELSE status END`);
+    values.push(allowed.drone_id);
+    i++;
+  }
+
+  values.push(id);
+  const { rows } = await db.query(
+    `UPDATE missions SET ${sets.join(', ')}, updated_at = now() WHERE id = $${i} RETURNING *`,
+    values
+  );
+  return rows[0] || null;
+}
+
+async function remove(id) {
+  await db.query(`DELETE FROM missions WHERE id = $1 AND status = 'draft'`, [id]);
 }
 
 async function updateCurrentWaypoint(id, seq) {
@@ -46,4 +152,13 @@ async function updateStatus(id, status, { notes } = {}) {
   return mission;
 }
 
-module.exports = { getById, getAssignedOrInProgress, updateCurrentWaypoint, updateStatus };
+module.exports = {
+  getById,
+  getInProgress,
+  updateCurrentWaypoint,
+  updateStatus,
+  list,
+  create,
+  update,
+  remove,
+};

@@ -35,6 +35,7 @@ app.get('/api/health', (req, res) => res.json({ status: 'ok' }));
 
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/drones', require('./routes/drones'));
+app.use('/api/missions', require('./routes/missions'));
 app.use('/api/telemetry', require('./routes/telemetry'));
 
 const clientDist = path.join(__dirname, 'client', 'dist');
@@ -52,14 +53,14 @@ async function start() {
   const adapter = initAdapter({ bus, pool: getPool() });
   await adapter.init();
 
-  const pending = await missionService.getAssignedOrInProgress();
-  for (const mission of pending) {
+  const inProgress = await missionService.getInProgress();
+  for (const mission of inProgress) {
     if (mission.drone_id) {
       await adapter.startMission(mission.drone_id, mission);
     }
   }
-  if (pending.length) {
-    console.log(`[server] Resumed ${pending.length} in-flight mission(s) on boot.`);
+  if (inProgress.length) {
+    console.log(`[server] Resumed ${inProgress.length} in-flight mission(s) on boot.`);
   }
 
   app.listen(PORT, () => {

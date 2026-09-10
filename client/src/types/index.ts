@@ -66,6 +66,7 @@ export interface Mission {
   pickup_address: string | null;
   dropoff_address: string | null;
   current_waypoint_seq: number;
+  created_at: string;
 }
 
 export interface TelemetryPayload {
