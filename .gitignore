@@ -5,4 +5,5 @@ dist/
 .env
 client/.env
 *.log
+*.tsbuildinfo
 .DS_Store
