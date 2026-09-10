@@ -1,10 +1,7 @@
 import { useEffect, useMemo, useRef } from 'react';
+import * as L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
 import type { Drone, DroneStatus, TelemetryPayload } from '../../types';
-
-// Leaflet is loaded globally via the CDN <script> tags in index.html (same
-// pattern as the existing Full Envios admin panel's live map) — `L` here
-// resolves through @types/leaflet's ambient `export as namespace L`, no
-// import needed.
 
 interface LiveMapProps {
   drones: Drone[];

@@ -6,8 +6,10 @@ export default defineConfig({
   server: {
     port: 5173,
     proxy: {
+      // DroneControl's own backend (server.js), not Full Envios' — see
+      // .claude/launch.json's "dronecontrol-server" entry (port 3001).
       '/api': {
-        target: process.env.VITE_API_PROXY_TARGET || 'http://localhost:3000',
+        target: 'http://localhost:3001',
         changeOrigin: true,
       },
     },
