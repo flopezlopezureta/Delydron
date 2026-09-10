@@ -1,0 +1,25 @@
+{
+  "name": "dronecontrol-server",
+  "version": "0.1.0",
+  "private": true,
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "db:init": "node scripts/initDb.js",
+    "db:seed": "node scripts/initDb.js --seed",
+    "create-user": "node scripts/createUser.js"
+  },
+  "dependencies": {
+    "express": "^4.21.2",
+    "pg": "^8.13.1",
+    "jsonwebtoken": "^9.0.2",
+    "bcryptjs": "^2.4.3",
+    "helmet": "^7.2.0",
+    "cors": "^2.8.5",
+    "express-rate-limit": "^7.4.1",
+    "dotenv": "^16.4.5"
+  }
+}

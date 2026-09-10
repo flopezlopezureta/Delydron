@@ -1,0 +1,58 @@
+# DroneControl
+
+Aplicación independiente de control de envíos por dron: despacho de misiones,
+mapa en vivo con telemetría, y planificación de rutas. La v1 vuela sobre una
+**flota simulada** (sin hardware real) detrás de una interfaz de adaptador,
+para poder conectar drones reales (MAVLink o DJI) más adelante sin rehacer el
+sistema.
+
+## Quickstart (desarrollo local)
+
+```bash
+# 1. Base de datos local (Postgres en Docker)
+docker compose up -d db
+
+# 2. Backend
+cp .env.example .env          # ajustar DB_PORT=5433 si usas el docker-compose de este repo
+npm install
+npm run db:init -- --seed     # crea las tablas + un dron y una misión de demo
+npm run create-user -- admin@dronecontrol.local pass123 "Admin" admin
+npm run dev                   # http://localhost:3000
+
+# 3. Frontend (en otra terminal)
+cd client
+cp .env.example .env
+npm install
+npm run dev                   # http://localhost:5173
+```
+
+Iniciar sesión con `admin@dronecontrol.local` / `pass123` (o el usuario que hayas creado).
+
+## Variables de entorno
+
+Ver [.env.example](.env.example) (backend) y [client/.env.example](client/.env.example) (frontend).
+
+| Variable | Uso |
+|---|---|
+| `DB_HOST/DB_USER/DB_PASSWORD/DB_NAME/DB_PORT/DB_SSL` | Conexión Postgres |
+| `JWT_SECRET/JWT_EXPIRES_IN` | Firma de sesión |
+| `DRONE_ADAPTER` | `simulated` hoy; `mavlink`/`dji` cuando haya hardware real |
+| `SIM_TICK_MS/SIM_DEFAULT_SPEED_MPS/SIM_BATTERY_DRAIN_PCT_PER_MIN` | Parámetros de la simulación de vuelo |
+| `VITE_API_BASE_URL` | Vacío = rutas relativas (funciona en dev vía proxy de Vite y en producción same-origin) |
+
+## Estado de las fases
+
+- [x] Fase 1 — scaffold, auth JWT, esquema de base de datos
+- [x] Fase 2 — adaptador simulado, mapa en vivo con telemetría SSE (checkpoint)
+- [ ] Fase 3 — despacho de misiones de punta a punta
+- [ ] Fase 4 — planificador visual de rutas (waypoints en el mapa)
+
+## Integración de hardware real (futuro, no implementado)
+
+Cuando haya drones físicos, se agrega un archivo nuevo en
+`services/adapters/` (`MavlinkAdapter.js` o `DjiAdapter.js`) que implemente
+la misma interfaz que `services/adapters/DroneAdapter.js`, y se activa con
+`DRONE_ADAPTER=mavlink` (o `dji`) — sin tocar rutas, base de datos ni frontend.
+
+- **MAVLink** (PX4/ArduPilot): protocolo abierto, cualquier marca de dron compatible.
+- **DJI** (Cloud API / Payload SDK): cerrado, solo hardware DJI, más común comercialmente en la región.
