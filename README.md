@@ -3,8 +3,7 @@
 Aplicación independiente de control de envíos por dron: despacho de misiones,
 mapa en vivo con telemetría, y planificación de rutas. La v1 vuela sobre una
 **flota simulada** (sin hardware real) detrás de una interfaz de adaptador,
-para poder conectar drones reales (MAVLink o DJI) más adelante sin rehacer el
-sistema.
+para poder conectar drones DJI reales más adelante sin rehacer el sistema.
 
 ## Quickstart (desarrollo local)
 
@@ -36,7 +35,7 @@ Ver [.env.example](.env.example) (backend) y [client/.env.example](client/.env.e
 |---|---|
 | `DB_HOST/DB_USER/DB_PASSWORD/DB_NAME/DB_PORT/DB_SSL` | Conexión Postgres |
 | `JWT_SECRET/JWT_EXPIRES_IN` | Firma de sesión |
-| `DRONE_ADAPTER` | `simulated` hoy; `mavlink`/`dji` cuando haya hardware real |
+| `DRONE_ADAPTER` | `simulated` hoy; `dji` cuando haya hardware real |
 | `SIM_TICK_MS/SIM_DEFAULT_SPEED_MPS/SIM_BATTERY_DRAIN_PCT_PER_MIN` | Parámetros de la simulación de vuelo |
 | `VITE_API_BASE_URL` | Vacío = rutas relativas (funciona en dev vía proxy de Vite y en producción same-origin) |
 
@@ -49,10 +48,18 @@ Ver [.env.example](.env.example) (backend) y [client/.env.example](client/.env.e
 
 ## Integración de hardware real (futuro, no implementado)
 
-Cuando haya drones físicos, se agrega un archivo nuevo en
-`services/adapters/` (`MavlinkAdapter.js` o `DjiAdapter.js`) que implemente
-la misma interfaz que `services/adapters/DroneAdapter.js`, y se activa con
-`DRONE_ADAPTER=mavlink` (o `dji`) — sin tocar rutas, base de datos ni frontend.
+Decisión tomada: se integra hardware **DJI** cuando esté disponible físicamente.
 
-- **MAVLink** (PX4/ArduPilot): protocolo abierto, cualquier marca de dron compatible.
-- **DJI** (Cloud API / Payload SDK): cerrado, solo hardware DJI, más común comercialmente en la región.
+Cuando llegue ese momento, se agrega `services/adapters/DjiAdapter.js`
+implementando la misma interfaz que `services/adapters/DroneAdapter.js`, y se
+activa con `DRONE_ADAPTER=dji` — sin tocar rutas, base de datos ni frontend.
+
+Hardware/SDK concreto a integrar:
+
+- **DJI Cloud API**: el SDK pensado exactamente para este patrón — una
+  plataforma web de terceros que despacha misiones y recibe telemetría/video
+  de una flota DJI de forma remota. Es lo que traduciría `DjiAdapter.js`.
+- **DJI Dock / Dock 2**: la estación que permite operar sin piloto presente
+  (despegue, misión, aterrizaje y recarga automáticos). Sin esto, cualquier
+  dron DJI necesita a alguien físicamente ahí con el control.
+- **DJI FlyCart 30**: el dron de carga de DJI pensado para reparto/logística.

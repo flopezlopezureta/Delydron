@@ -15,6 +15,8 @@ function getPool() {
     };
   }
 
+  const tz = process.env.SYSTEM_TZ || 'America/Santiago';
+
   pool = new Pool({
     host: DB_HOST,
     user: DB_USER,
@@ -25,13 +27,12 @@ function getPool() {
     idleTimeoutMillis: 30000,
     connectionTimeoutMillis: 20000,
     ssl: DB_SSL === 'true' ? { rejectUnauthorized: false } : false,
-  });
-
-  const tz = process.env.SYSTEM_TZ || 'America/Santiago';
-  pool.on('connect', (client) => {
-    client.query(`SET TIME ZONE '${tz}'`).catch((err) => {
-      console.error('[db] Failed to set session timezone:', err.message);
-    });
+    // Set via connection startup options (not a post-connect query) so
+    // there's no race with the first query issued once the pool hands the
+    // client out — pool.on('connect') firing a detached client.query()
+    // can overlap with that first checkout and trip pg's "query already
+    // in progress" warning.
+    options: `-c TimeZone=${tz}`,
   });
 
   pool.on('error', (err) => {
