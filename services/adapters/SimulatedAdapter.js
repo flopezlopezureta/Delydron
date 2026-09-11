@@ -4,6 +4,7 @@ const droneService = require('../droneService');
 const missionService = require('../missionService');
 const telemetryService = require('../telemetryService');
 const deliveryService = require('../deliveryService');
+const baseService = require('../baseService');
 const { publishTelemetry, publishDelivery } = require('../telemetryBus');
 
 const TICK_MS = Number(process.env.SIM_TICK_MS) || 1000;
@@ -15,10 +16,15 @@ const ARRIVAL_EPSILON_M = 2;
 // waypoints on a tick loop, draining battery and persisting/publishing
 // telemetry every tick. The `drones` row is always the source of truth for
 // position, so restarting the server just resumes the current leg.
+//
+// A mission flight has two phases: 'delivering' (working through the real
+// destinations, opening a gate at each) then 'returning' (flying to the
+// mission's return base, or the drone's own home if none was set) before
+// the mission is actually marked completed.
 class SimulatedAdapter extends DroneAdapter {
   constructor(deps) {
     super(deps);
-    this.flights = new Map(); // droneId -> { missionId, waypoints, targetIndex, speedMps, homeOnly }
+    this.flights = new Map(); // droneId -> { missionId, waypoints, targetIndex, speedMps, homeOnly, phase, returnPoint }
     this.timer = null;
   }
 
@@ -41,6 +47,14 @@ class SimulatedAdapter extends DroneAdapter {
     this.flights.delete(droneId);
   }
 
+  async resolveReturnPoint(missionRow, drone) {
+    if (missionRow.return_base_id) {
+      const base = await baseService.getById(missionRow.return_base_id);
+      if (base) return { lat: base.lat, lon: base.lon };
+    }
+    return { lat: drone.home_lat, lon: drone.home_lon };
+  }
+
   async startMission(droneId, missionRow) {
     const drone = await droneService.getById(droneId);
     if (!drone) throw new Error(`Unknown drone ${droneId}`);
@@ -48,22 +62,24 @@ class SimulatedAdapter extends DroneAdapter {
     const waypoints = [...(missionRow.waypoints || [])].sort((a, b) => a.seq - b.seq);
     const lastDone = missionRow.current_waypoint_seq || 0;
     const targetIndex = waypoints.findIndex((wp) => wp.seq > lastDone);
+    const returnPoint = await this.resolveReturnPoint(missionRow, drone);
+    const speedMps = Number(drone.max_speed_mps) || DEFAULT_SPEED_MPS;
 
-    if (targetIndex === -1) {
-      await missionService.updateStatus(missionRow.id, 'completed');
-      await droneService.updateStatus(droneId, 'idle');
-      return;
-    }
+    // No real destinations left (e.g. resuming after a restart that
+    // happened mid-return) — skip straight to flying the return leg.
+    const phase = targetIndex === -1 ? 'returning' : 'delivering';
 
     this.flights.set(droneId, {
       missionId: missionRow.id,
       waypoints,
-      targetIndex,
-      speedMps: Number(drone.max_speed_mps) || DEFAULT_SPEED_MPS,
+      targetIndex: targetIndex === -1 ? waypoints.length : targetIndex,
+      speedMps,
       homeOnly: false,
+      phase,
+      returnPoint,
     });
 
-    await droneService.updateStatus(droneId, 'in_flight');
+    await droneService.updateStatus(droneId, phase === 'returning' ? 'returning' : 'in_flight');
     if (missionRow.status !== 'in_progress') {
       await missionService.updateStatus(missionRow.id, 'in_progress');
     }
@@ -124,7 +140,10 @@ class SimulatedAdapter extends DroneAdapter {
     }
 
     const current = { lat: drone.lat, lon: drone.lon };
-    const target = flight.waypoints[flight.targetIndex];
+    const target =
+      flight.phase === 'returning'
+        ? { seq: null, lat: flight.returnPoint.lat, lon: flight.returnPoint.lon, alt_m: 0 }
+        : flight.waypoints[flight.targetIndex];
     const targetPoint = { lat: target.lat, lon: target.lon };
 
     const distRemaining = haversineMeters(current, targetPoint);
@@ -149,42 +168,42 @@ class SimulatedAdapter extends DroneAdapter {
       status = 'error';
       speedMps = 0;
       this.flights.delete(droneId);
-    } else if (arrived) {
-      const isFinalDestination = flight.targetIndex + 1 >= flight.waypoints.length;
+    } else if (arrived && flight.homeOnly) {
+      // Manual return-to-home recall (not tied to a mission's own return leg).
+      status = 'idle';
+      speedMps = 0;
+      this.flights.delete(droneId);
+      await droneService.updateStatus(droneId, 'idle');
+    } else if (arrived && flight.phase === 'delivering') {
+      // Reaching a real destination opens that bay's discharge gate and
+      // logs the delivery, whether it's a stop along the way or the last one.
+      const delivery = await deliveryService.record({
+        missionId: flight.missionId,
+        droneId,
+        waypointSeq: target.seq,
+        lat: target.lat,
+        lon: target.lon,
+        packageDesc: target.package_desc,
+      });
+      publishDelivery(delivery);
+      await missionService.updateCurrentWaypoint(flight.missionId, target.seq);
 
-      // Reaching any real destination (not a return-to-home hop) opens that
-      // bay's discharge gate and logs the delivery, whether it's a stop
-      // along the way or the last one.
-      if (!flight.homeOnly) {
-        const delivery = await deliveryService.record({
-          missionId: flight.missionId,
-          droneId,
-          waypointSeq: target.seq,
-          lat: target.lat,
-          lon: target.lon,
-          packageDesc: target.package_desc,
-        });
-        publishDelivery(delivery);
-      }
-
-      if (!isFinalDestination) {
+      const isLastDestination = flight.targetIndex + 1 >= flight.waypoints.length;
+      if (!isLastDestination) {
         flight.targetIndex += 1;
-        if (flight.missionId) {
-          await missionService.updateCurrentWaypoint(flight.missionId, target.seq);
-        }
       } else {
-        status = 'idle';
-        speedMps = 0;
-        this.flights.delete(droneId);
-
-        if (flight.homeOnly) {
-          await droneService.updateStatus(droneId, 'idle');
-        } else if (flight.missionId) {
-          await missionService.updateCurrentWaypoint(flight.missionId, target.seq);
-          await missionService.updateStatus(flight.missionId, 'completed');
-          await droneService.updateStatus(droneId, 'idle');
-        }
+        // All destinations delivered — now fly the return leg instead of
+        // completing the mission immediately.
+        flight.phase = 'returning';
+        status = 'returning';
+        await droneService.updateStatus(droneId, 'returning');
       }
+    } else if (arrived && flight.phase === 'returning') {
+      status = 'idle';
+      speedMps = 0;
+      this.flights.delete(droneId);
+      await missionService.updateStatus(flight.missionId, 'completed');
+      await droneService.updateStatus(droneId, 'idle');
     }
 
     await droneService.updatePosition(droneId, {

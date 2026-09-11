@@ -54,6 +54,7 @@ async function create({
   pickupBaseId,
   pickupAddress,
   dropoffAddress,
+  returnBaseId,
   notes,
 }) {
   const code = await nextMissionCode();
@@ -62,9 +63,10 @@ async function create({
   const { rows } = await db.query(
     `INSERT INTO missions (
        code, drone_id, created_by, status, priority, waypoints,
-       payload_desc, pickup_base_id, pickup_address, dropoff_address, notes
+       payload_desc, pickup_base_id, pickup_address, dropoff_address,
+       return_base_id, notes
      )
-     VALUES ($1, $2, $3, $4, COALESCE($5, 3), COALESCE($6, '[]'::jsonb), $7, $8, $9, $10, $11)
+     VALUES ($1, $2, $3, $4, COALESCE($5, 3), COALESCE($6, '[]'::jsonb), $7, $8, $9, $10, $11, $12)
      RETURNING *`,
     [
       code,
@@ -77,6 +79,7 @@ async function create({
       pickupBaseId || null,
       pickupAddress || null,
       dropoffAddress || null,
+      returnBaseId || null,
       notes || null,
     ]
   );
@@ -92,6 +95,7 @@ async function update(id, fields) {
     pickup_base_id: fields.pickupBaseId,
     pickup_address: fields.pickupAddress,
     dropoff_address: fields.dropoffAddress,
+    return_base_id: fields.returnBaseId,
     notes: fields.notes,
   };
 

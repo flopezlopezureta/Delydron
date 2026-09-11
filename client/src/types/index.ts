@@ -79,6 +79,7 @@ export interface Mission {
   pickup_base_id: string | null;
   pickup_address: string | null;
   dropoff_address: string | null;
+  return_base_id: string | null;
   current_waypoint_seq: number;
   created_at: string;
 }

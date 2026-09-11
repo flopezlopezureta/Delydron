@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useRef } from 'react';
 import * as L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import type { Base, Drone, DroneStatus, TelemetryPayload } from '../../types';
+import type { Base, Delivery, Drone, DroneStatus, Mission, TelemetryPayload, Waypoint } from '../../types';
 
 interface LiveMapProps {
   drones: Drone[];
   bases: Base[];
+  missions: Mission[];
+  deliveries: Delivery[];
   telemetryByDrone: Record<string, TelemetryPayload>;
 }
 
@@ -21,6 +23,7 @@ function makeBaseIcon() {
 
 const DEFAULT_CENTER: [number, number] = [-33.4489, -70.6693];
 const DEFAULT_ZOOM = 15;
+const ACTIVE_FLIGHT_STATUSES: DroneStatus[] = ['in_flight', 'returning'];
 
 function statusColor(status: DroneStatus | string) {
   switch (status) {
@@ -58,17 +61,60 @@ function makeIcon(headingDeg: number, status: string) {
   });
 }
 
-export function LiveMap({ drones, bases, telemetryByDrone }: LiveMapProps) {
+// Waypoints already reached — either before this page loaded (persisted
+// current_waypoint_seq) or since (live DELIVERY events) — subtracted from
+// the mission's full waypoint list to get what's still ahead.
+function remainingWaypoints(mission: Mission, deliveries: Delivery[]): Waypoint[] {
+  const deliveredSeqs = new Set<number>();
+  for (const wp of mission.waypoints) {
+    if (wp.seq <= mission.current_waypoint_seq) deliveredSeqs.add(wp.seq);
+  }
+  for (const d of deliveries) {
+    if (d.mission_id === mission.id) deliveredSeqs.add(d.waypoint_seq);
+  }
+  return mission.waypoints.filter((wp) => !deliveredSeqs.has(wp.seq)).sort((a, b) => a.seq - b.seq);
+}
+
+function resolveReturnPoint(
+  mission: Mission,
+  drone: Drone | undefined,
+  basesById: Record<string, Base>
+): [number, number] | null {
+  if (mission.return_base_id) {
+    const base = basesById[mission.return_base_id];
+    if (base) return [base.lat, base.lon];
+  }
+  if (drone) return [drone.home_lat, drone.home_lon];
+  return null;
+}
+
+export function LiveMap({ drones, bases, missions, deliveries, telemetryByDrone }: LiveMapProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<L.Map | null>(null);
   const markersRef = useRef<Record<string, L.Marker>>({});
   const baseMarkersRef = useRef<L.Marker[]>([]);
+  const trailPointsRef = useRef<Record<string, [number, number][]>>({});
+  const trailMissionRef = useRef<Record<string, string | null>>({});
+  const trailLinesRef = useRef<Record<string, L.Polyline>>({});
+  const remainingLinesRef = useRef<Record<string, L.Polyline>>({});
 
   const droneById = useMemo(() => {
     const map: Record<string, Drone> = {};
     for (const d of drones) map[d.id] = d;
     return map;
   }, [drones]);
+
+  const missionById = useMemo(() => {
+    const map: Record<string, Mission> = {};
+    for (const m of missions) map[m.id] = m;
+    return map;
+  }, [missions]);
+
+  const basesById = useMemo(() => {
+    const map: Record<string, Base> = {};
+    for (const b of bases) map[b.id] = b;
+    return map;
+  }, [bases]);
 
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
@@ -85,6 +131,8 @@ export function LiveMap({ drones, bases, telemetryByDrone }: LiveMapProps) {
       mapRef.current = null;
       markersRef.current = {};
       baseMarkersRef.current = [];
+      trailLinesRef.current = {};
+      remainingLinesRef.current = {};
     };
   }, []);
 
@@ -124,7 +172,9 @@ export function LiveMap({ drones, bases, telemetryByDrone }: LiveMapProps) {
 
   // Live position/heading/status updates from SSE telemetry — mutates
   // existing markers in place (setLatLng/setIcon) instead of remounting,
-  // which is what makes the movement render smoothly.
+  // which is what makes the movement render smoothly. The same tick also
+  // grows the flown-trail polyline and redraws the remaining-route polyline
+  // (destinations still ahead, plus the eventual return leg).
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
@@ -145,8 +195,54 @@ export function LiveMap({ drones, bases, telemetryByDrone }: LiveMapProps) {
       }
 
       marker.setTooltipContent(`${label} · ${telemetry.status} · ${telemetry.batteryPct.toFixed(0)}%`);
+
+      // Flown trail: reset whenever the mission changes, then keep growing.
+      if (trailMissionRef.current[droneId] !== telemetry.missionId) {
+        trailMissionRef.current[droneId] = telemetry.missionId;
+        trailPointsRef.current[droneId] = [];
+      }
+      const trail = trailPointsRef.current[droneId] ?? (trailPointsRef.current[droneId] = []);
+      trail.push([telemetry.lat, telemetry.lon]);
+
+      let trailLine = trailLinesRef.current[droneId];
+      if (!trailLine) {
+        trailLine = L.polyline(trail, { color: '#2563eb', weight: 3, opacity: 0.6 }).addTo(map);
+        trailLinesRef.current[droneId] = trailLine;
+      } else {
+        trailLine.setLatLngs(trail);
+      }
+
+      // Remaining route: destinations not yet delivered, then the return
+      // leg — only while actually flying a mission.
+      const mission = telemetry.missionId ? missionById[telemetry.missionId] : undefined;
+      const isActive = ACTIVE_FLIGHT_STATUSES.includes(telemetry.status);
+      const remaining = mission && isActive ? remainingWaypoints(mission, deliveries) : [];
+      const returnPoint = mission && isActive ? resolveReturnPoint(mission, droneById[droneId], basesById) : null;
+
+      if (mission && isActive && (remaining.length > 0 || returnPoint)) {
+        const points: [number, number][] = [
+          [telemetry.lat, telemetry.lon],
+          ...remaining.map((wp): [number, number] => [wp.lat, wp.lon]),
+        ];
+        if (returnPoint) points.push(returnPoint);
+
+        let remainingLine = remainingLinesRef.current[droneId];
+        if (!remainingLine) {
+          remainingLine = L.polyline(points, {
+            color: '#94a3b8',
+            weight: 3,
+            dashArray: '6 6',
+          }).addTo(map);
+          remainingLinesRef.current[droneId] = remainingLine;
+        } else {
+          remainingLine.setLatLngs(points);
+        }
+      } else if (remainingLinesRef.current[droneId]) {
+        remainingLinesRef.current[droneId].remove();
+        delete remainingLinesRef.current[droneId];
+      }
     }
-  }, [telemetryByDrone, droneById]);
+  }, [telemetryByDrone, droneById, missionById, basesById, deliveries]);
 
   return <div ref={containerRef} className="h-full w-full" />;
 }

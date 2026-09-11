@@ -1,16 +1,17 @@
 import { useMemo, useState } from 'react';
-import { abortMission, deleteMission, dispatchMission } from '../../api/missions';
+import { abortMission, deleteMission, dispatchMission, updateMission } from '../../api/missions';
 import { MissionStatusBadge } from './MissionStatusBadge';
-import type { Drone, Mission, MissionStatusPayload } from '../../types';
+import type { Base, Drone, Mission, MissionStatusPayload } from '../../types';
 
 interface MissionTableProps {
   missions: Mission[];
   drones: Drone[];
+  bases: Base[];
   liveStatusById: Record<string, MissionStatusPayload>;
   onChanged: () => void;
 }
 
-export function MissionTable({ missions, drones, liveStatusById, onChanged }: MissionTableProps) {
+export function MissionTable({ missions, drones, bases, liveStatusById, onChanged }: MissionTableProps) {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -19,6 +20,12 @@ export function MissionTable({ missions, drones, liveStatusById, onChanged }: Mi
     for (const d of drones) map[d.id] = d.name;
     return map;
   }, [drones]);
+
+  const baseNameById = useMemo(() => {
+    const map: Record<string, string> = {};
+    for (const b of bases) map[b.id] = b.name;
+    return map;
+  }, [bases]);
 
   async function run(id: string, action: () => Promise<unknown>) {
     setError(null);
@@ -47,6 +54,7 @@ export function MissionTable({ missions, drones, liveStatusById, onChanged }: Mi
             <th className="px-4 py-2">Dron</th>
             <th className="px-4 py-2">Estado</th>
             <th className="px-4 py-2">Prioridad</th>
+            <th className="px-4 py-2">Retorno</th>
             <th className="px-4 py-2">Creada</th>
             <th className="px-4 py-2">Acciones</th>
           </tr>
@@ -57,6 +65,7 @@ export function MissionTable({ missions, drones, liveStatusById, onChanged }: Mi
             const canDispatch = ['draft', 'scheduled', 'assigned'].includes(status) && m.drone_id;
             const canAbort = ['assigned', 'in_progress'].includes(status);
             const canDelete = status === 'draft';
+            const canEditReturn = ['draft', 'scheduled', 'assigned'].includes(status);
             const busy = busyId === m.id;
 
             return (
@@ -67,6 +76,29 @@ export function MissionTable({ missions, drones, liveStatusById, onChanged }: Mi
                   <MissionStatusBadge status={status} />
                 </td>
                 <td className="px-4 py-2">{m.priority}</td>
+                <td className="px-4 py-2">
+                  {canEditReturn ? (
+                    <select
+                      disabled={busy}
+                      value={m.return_base_id ?? ''}
+                      onChange={(e) =>
+                        run(m.id, () => updateMission(m.id, { returnBaseId: e.target.value || null }))
+                      }
+                      className="rounded border border-slate-300 px-1.5 py-1 text-xs disabled:opacity-50"
+                    >
+                      <option value="">Base propia del dron</option>
+                      {bases.map((b) => (
+                        <option key={b.id} value={b.id}>
+                          {b.name}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <span className="text-slate-500">
+                      {m.return_base_id ? baseNameById[m.return_base_id] ?? m.return_base_id : 'Base propia del dron'}
+                    </span>
+                  )}
+                </td>
                 <td className="px-4 py-2 text-slate-500">{new Date(m.created_at).toLocaleString('es-CL')}</td>
                 <td className="px-4 py-2">
                   <div className="flex gap-2">

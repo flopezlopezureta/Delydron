@@ -1,12 +1,14 @@
 import { Link } from 'react-router-dom';
 import { useMissions } from '../hooks/useMissions';
 import { useDrones } from '../hooks/useDrones';
+import { useBases } from '../hooks/useBases';
 import { useFleetTelemetry } from '../hooks/useFleetTelemetry';
 import { MissionTable } from '../components/missions/MissionTable';
 
 export function MissionsPage() {
   const { missions, loading, error, refetch } = useMissions();
   const { drones } = useDrones();
+  const { bases } = useBases();
   const { missionStatusById } = useFleetTelemetry();
 
   return (
@@ -27,6 +29,7 @@ export function MissionsPage() {
         <MissionTable
           missions={missions}
           drones={drones}
+          bases={bases}
           liveStatusById={missionStatusById}
           onChanged={refetch}
         />

@@ -22,6 +22,7 @@ export function MissionPlannerPage() {
   const [pickupBaseId, setPickupBaseId] = useState('');
   const [pickupAddress, setPickupAddress] = useState('');
   const [dropoffAddress, setDropoffAddress] = useState('');
+  const [returnBaseId, setReturnBaseId] = useState('');
   const [waypoints, setWaypoints] = useState<Waypoint[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -88,6 +89,7 @@ export function MissionPlannerPage() {
         pickupBaseId: pickupBaseId || undefined,
         pickupAddress: pickupAddress || undefined,
         dropoffAddress: dropoffAddress || undefined,
+        returnBaseId: returnBaseId || undefined,
       });
       navigate('/missions');
     } catch (err) {
@@ -175,6 +177,22 @@ export function MissionPlannerPage() {
             onChange={(e) => setDropoffAddress(e.target.value)}
             className="w-full rounded border border-slate-300 px-2 py-1.5 text-sm"
           />
+        </div>
+
+        <div className="mb-3">
+          <label className="mb-1 block text-xs text-slate-600">Base de retorno (vacío = base propia del dron)</label>
+          <select
+            value={returnBaseId}
+            onChange={(e) => setReturnBaseId(e.target.value)}
+            className="w-full rounded border border-slate-300 px-2 py-1.5 text-sm"
+          >
+            <option value="">Base propia del dron</option>
+            {bases.map((b) => (
+              <option key={b.id} value={b.id}>
+                {b.name}
+              </option>
+            ))}
+          </select>
         </div>
 
         <div className="mb-4">

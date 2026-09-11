@@ -64,6 +64,7 @@ CREATE TABLE IF NOT EXISTS missions (
   pickup_base_id UUID REFERENCES bases(id) ON DELETE SET NULL,
   pickup_address VARCHAR(255),
   dropoff_address VARCHAR(255),
+  return_base_id UUID REFERENCES bases(id) ON DELETE SET NULL,
   scheduled_at TIMESTAMPTZ,
   started_at TIMESTAMPTZ,
   completed_at TIMESTAMPTZ,
@@ -80,6 +81,9 @@ CREATE INDEX IF NOT EXISTS idx_missions_drone_id ON missions(drone_id);
 -- earlier version of this script (CREATE TABLE IF NOT EXISTS is a no-op
 -- against an existing table, it won't backfill new columns on its own).
 ALTER TABLE missions ADD COLUMN IF NOT EXISTS pickup_base_id UUID REFERENCES bases(id) ON DELETE SET NULL;
+-- NULL = return to the assigned drone's own home position (the old,
+-- implicit behavior); set = return to this base instead.
+ALTER TABLE missions ADD COLUMN IF NOT EXISTS return_base_id UUID REFERENCES bases(id) ON DELETE SET NULL;
 
 -- TELEMETRY_LOG (time-series trail) ---------------------------------------
 CREATE TABLE IF NOT EXISTS telemetry_log (

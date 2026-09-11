@@ -9,6 +9,7 @@ export interface MissionInput {
   pickupBaseId?: string;
   pickupAddress?: string;
   dropoffAddress?: string;
+  returnBaseId?: string | null;
   notes?: string;
 }
 
