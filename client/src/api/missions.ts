@@ -6,6 +6,7 @@ export interface MissionInput {
   priority?: number;
   waypoints?: Waypoint[];
   payloadDesc?: string;
+  pickupBaseId?: string;
   pickupAddress?: string;
   dropoffAddress?: string;
   notes?: string;

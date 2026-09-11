@@ -13,6 +13,17 @@ CREATE TABLE IF NOT EXISTS users (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+-- BASES (dispatch depots/hubs) --------------------------------------------
+CREATE TABLE IF NOT EXISTS bases (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name VARCHAR(100) NOT NULL,
+  address VARCHAR(255),
+  lat DOUBLE PRECISION NOT NULL,
+  lon DOUBLE PRECISION NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
 -- DRONES -----------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS drones (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -50,6 +61,7 @@ CREATE TABLE IF NOT EXISTS missions (
   priority SMALLINT NOT NULL DEFAULT 3 CHECK (priority BETWEEN 1 AND 5),
   waypoints JSONB NOT NULL DEFAULT '[]',
   payload_desc VARCHAR(255),
+  pickup_base_id UUID REFERENCES bases(id) ON DELETE SET NULL,
   pickup_address VARCHAR(255),
   dropoff_address VARCHAR(255),
   scheduled_at TIMESTAMPTZ,
@@ -63,6 +75,11 @@ CREATE TABLE IF NOT EXISTS missions (
 );
 CREATE INDEX IF NOT EXISTS idx_missions_status ON missions(status);
 CREATE INDEX IF NOT EXISTS idx_missions_drone_id ON missions(drone_id);
+
+-- Explicit ALTER so this column reaches databases that already ran an
+-- earlier version of this script (CREATE TABLE IF NOT EXISTS is a no-op
+-- against an existing table, it won't backfill new columns on its own).
+ALTER TABLE missions ADD COLUMN IF NOT EXISTS pickup_base_id UUID REFERENCES bases(id) ON DELETE SET NULL;
 
 -- TELEMETRY_LOG (time-series trail) ---------------------------------------
 CREATE TABLE IF NOT EXISTS telemetry_log (

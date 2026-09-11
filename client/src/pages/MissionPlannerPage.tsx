@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useDrones } from '../hooks/useDrones';
+import { useBases } from '../hooks/useBases';
 import { createMission } from '../api/missions';
 import { WaypointPlannerMap } from '../components/map/WaypointPlannerMap';
 import { WaypointList } from '../components/missions/WaypointList';
@@ -12,11 +13,13 @@ const DEFAULT_ALT_M = 60;
 export function MissionPlannerPage() {
   const navigate = useNavigate();
   const { drones } = useDrones();
+  const { bases } = useBases();
   const idleDrones = drones.filter((d) => d.status === 'idle');
 
   const [droneId, setDroneId] = useState('');
   const [priority, setPriority] = useState(3);
   const [payloadDesc, setPayloadDesc] = useState('');
+  const [pickupBaseId, setPickupBaseId] = useState('');
   const [pickupAddress, setPickupAddress] = useState('');
   const [dropoffAddress, setDropoffAddress] = useState('');
   const [waypoints, setWaypoints] = useState<Waypoint[]>([]);
@@ -48,6 +51,15 @@ export function MissionPlannerPage() {
     );
   }
 
+  function handlePickupBaseChange(id: string) {
+    setPickupBaseId(id);
+    const base = bases.find((b) => b.id === id);
+    // Only auto-fill if the operator hasn't already typed their own address.
+    if (base && !pickupAddress.trim()) {
+      setPickupAddress(base.address ?? base.name);
+    }
+  }
+
   async function handleCreate() {
     setError(null);
     if (waypoints.length < 1) {
@@ -62,6 +74,7 @@ export function MissionPlannerPage() {
         priority,
         waypoints,
         payloadDesc: payloadDesc || undefined,
+        pickupBaseId: pickupBaseId || undefined,
         pickupAddress: pickupAddress || undefined,
         dropoffAddress: dropoffAddress || undefined,
       });
@@ -114,6 +127,22 @@ export function MissionPlannerPage() {
             onChange={(e) => setPriority(Number(e.target.value))}
             className="w-full rounded border border-slate-300 px-2 py-1.5 text-sm"
           />
+        </div>
+
+        <div className="mb-3">
+          <label className="mb-1 block text-xs text-slate-600">Base de retiro</label>
+          <select
+            value={pickupBaseId}
+            onChange={(e) => handlePickupBaseChange(e.target.value)}
+            className="w-full rounded border border-slate-300 px-2 py-1.5 text-sm"
+          >
+            <option value="">Sin base</option>
+            {bases.map((b) => (
+              <option key={b.id} value={b.id}>
+                {b.name}
+              </option>
+            ))}
+          </select>
         </div>
 
         <div className="mb-3">

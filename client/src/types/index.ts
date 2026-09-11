@@ -37,6 +37,14 @@ export interface Drone {
   last_seen_at: string | null;
 }
 
+export interface Base {
+  id: string;
+  name: string;
+  address: string | null;
+  lat: number;
+  lon: number;
+}
+
 export type MissionStatus =
   | 'draft'
   | 'scheduled'
@@ -63,6 +71,7 @@ export interface Mission {
   priority: number;
   waypoints: Waypoint[];
   payload_desc: string | null;
+  pickup_base_id: string | null;
   pickup_address: string | null;
   dropoff_address: string | null;
   current_waypoint_seq: number;

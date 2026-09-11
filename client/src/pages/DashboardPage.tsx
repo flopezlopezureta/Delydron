@@ -1,10 +1,12 @@
 import { useDrones } from '../hooks/useDrones';
+import { useBases } from '../hooks/useBases';
 import { useFleetTelemetry } from '../hooks/useFleetTelemetry';
 import { LiveMap } from '../components/map/LiveMap';
 import { TelemetryHud } from '../components/map/TelemetryHud';
 
 export function DashboardPage() {
   const { drones, loading, error } = useDrones();
+  const { bases } = useBases();
   const { telemetryByDrone } = useFleetTelemetry();
 
   if (loading) {
@@ -17,7 +19,7 @@ export function DashboardPage() {
 
   return (
     <div className="relative h-full w-full">
-      <LiveMap drones={drones} telemetryByDrone={telemetryByDrone} />
+      <LiveMap drones={drones} bases={bases} telemetryByDrone={telemetryByDrone} />
       <TelemetryHud drones={drones} telemetryByDrone={telemetryByDrone} />
     </div>
   );

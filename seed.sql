@@ -5,6 +5,11 @@
 -- status means "waiting for a human to click Dispatch".
 -- Fixed UUIDs make this script idempotent (safe to re-run).
 
+INSERT INTO bases (id, name, address, lat, lon) VALUES
+  ('33333333-3333-3333-3333-333333333333', 'Bodega Central', 'Av. Libertador Bernardo O''Higgins 1111, Santiago', -33.4489, -70.6693),
+  ('44444444-4444-4444-4444-444444444444', 'Bodega Norte', 'Av. Independencia 2222, Santiago', -33.4100, -70.6600)
+ON CONFLICT (id) DO NOTHING;
+
 INSERT INTO drones (
   id, name, serial_number, model, adapter_type, status,
   battery_pct, lat, lon, altitude_m, heading_deg, speed_mps,
@@ -19,7 +24,7 @@ ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO missions (
   id, code, drone_id, created_by, status, priority, waypoints,
-  payload_desc, pickup_address, dropoff_address,
+  payload_desc, pickup_base_id, pickup_address, dropoff_address,
   current_waypoint_seq, distance_planned_m
 ) VALUES (
   '22222222-2222-2222-2222-222222222222',
@@ -32,7 +37,7 @@ INSERT INTO missions (
     {"seq": 1, "lat": -33.4520, "lon": -70.6650, "alt_m": 60, "action": "flyto", "hold_s": 0},
     {"seq": 2, "lat": -33.4550, "lon": -70.6600, "alt_m": 60, "action": "flyto", "hold_s": 0}
   ]'::jsonb,
-  'Paquete de demostracion', 'Bodega Central', 'Cliente Demo',
+  'Paquete de demostracion', '33333333-3333-3333-3333-333333333333', 'Bodega Central', 'Cliente Demo',
   0, 950
 )
 ON CONFLICT (id) DO NOTHING;

@@ -1,11 +1,22 @@
 import { useEffect, useMemo, useRef } from 'react';
 import * as L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import type { Drone, DroneStatus, TelemetryPayload } from '../../types';
+import type { Base, Drone, DroneStatus, TelemetryPayload } from '../../types';
 
 interface LiveMapProps {
   drones: Drone[];
+  bases: Base[];
   telemetryByDrone: Record<string, TelemetryPayload>;
+}
+
+function baseIconHtml() {
+  return `<div style="width:22px;height:22px;border-radius:5px;background:#0f172a;color:white;
+    display:flex;align-items:center;justify-content:center;font:700 11px sans-serif;
+    border:2px solid white;box-shadow:0 1px 3px rgba(0,0,0,.4);">B</div>`;
+}
+
+function makeBaseIcon() {
+  return L.divIcon({ className: '', html: baseIconHtml(), iconSize: [22, 22], iconAnchor: [11, 11] });
 }
 
 const DEFAULT_CENTER: [number, number] = [-33.4489, -70.6693];
@@ -47,10 +58,11 @@ function makeIcon(headingDeg: number, status: string) {
   });
 }
 
-export function LiveMap({ drones, telemetryByDrone }: LiveMapProps) {
+export function LiveMap({ drones, bases, telemetryByDrone }: LiveMapProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<L.Map | null>(null);
   const markersRef = useRef<Record<string, L.Marker>>({});
+  const baseMarkersRef = useRef<L.Marker[]>([]);
 
   const droneById = useMemo(() => {
     const map: Record<string, Drone> = {};
@@ -72,8 +84,23 @@ export function LiveMap({ drones, telemetryByDrone }: LiveMapProps) {
       map.remove();
       mapRef.current = null;
       markersRef.current = {};
+      baseMarkersRef.current = [];
     };
   }, []);
+
+  // Bases are static reference points (dispatch depots), rebuilt in full
+  // whenever the list changes rather than incrementally like drone telemetry.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+
+    for (const marker of baseMarkersRef.current) marker.remove();
+    baseMarkersRef.current = bases.map((base) => {
+      const marker = L.marker([base.lat, base.lon], { icon: makeBaseIcon() }).addTo(map);
+      marker.bindTooltip(`${base.name}${base.address ? ` · ${base.address}` : ''}`);
+      return marker;
+    });
+  }, [bases]);
 
   // Seed a marker from initial drone metadata (home position) so drones are
   // visible on the map even before the first telemetry tick arrives.

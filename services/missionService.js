@@ -51,6 +51,7 @@ async function create({
   priority,
   waypoints,
   payloadDesc,
+  pickupBaseId,
   pickupAddress,
   dropoffAddress,
   notes,
@@ -61,9 +62,9 @@ async function create({
   const { rows } = await db.query(
     `INSERT INTO missions (
        code, drone_id, created_by, status, priority, waypoints,
-       payload_desc, pickup_address, dropoff_address, notes
+       payload_desc, pickup_base_id, pickup_address, dropoff_address, notes
      )
-     VALUES ($1, $2, $3, $4, COALESCE($5, 3), COALESCE($6, '[]'::jsonb), $7, $8, $9, $10)
+     VALUES ($1, $2, $3, $4, COALESCE($5, 3), COALESCE($6, '[]'::jsonb), $7, $8, $9, $10, $11)
      RETURNING *`,
     [
       code,
@@ -73,6 +74,7 @@ async function create({
       priority,
       waypoints ? JSON.stringify(waypoints) : null,
       payloadDesc || null,
+      pickupBaseId || null,
       pickupAddress || null,
       dropoffAddress || null,
       notes || null,
@@ -87,6 +89,7 @@ async function update(id, fields) {
     priority: fields.priority,
     waypoints: fields.waypoints ? JSON.stringify(fields.waypoints) : undefined,
     payload_desc: fields.payloadDesc,
+    pickup_base_id: fields.pickupBaseId,
     pickup_address: fields.pickupAddress,
     dropoff_address: fields.dropoffAddress,
     notes: fields.notes,

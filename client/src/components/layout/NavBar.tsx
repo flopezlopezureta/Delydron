@@ -18,6 +18,9 @@ export function NavBar() {
           <NavLink to="/missions" className={linkClass}>
             Misiones
           </NavLink>
+          <NavLink to="/bases" className={linkClass}>
+            Bases
+          </NavLink>
         </nav>
       </div>
       {user && (
