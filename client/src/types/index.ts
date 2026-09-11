@@ -54,11 +54,16 @@ export type MissionStatus =
   | 'aborted'
   | 'failed';
 
+// A drone has one discharge gate per cargo bay — 4 bays, so at most 4
+// destinations (deliveries) per mission.
+export const MAX_DESTINATIONS_PER_MISSION = 4;
+
 export interface Waypoint {
   seq: number;
   lat: number;
   lon: number;
   alt_m: number;
+  package_desc?: string;
   action?: string;
   hold_s?: number;
 }
@@ -94,4 +99,21 @@ export interface MissionStatusPayload {
   missionId: string;
   droneId: string | null;
   status: MissionStatus;
+}
+
+// Matches the raw `deliveries` DB row (snake_case) — both the REST list
+// endpoint and the live SSE 'DELIVERY' event use this same shape. The SSE
+// event just won't have mission_code/drone_name populated (no join there);
+// pages resolve those from their already-loaded missions/drones lists.
+export interface Delivery {
+  id: string;
+  mission_id: string | null;
+  drone_id: string | null;
+  waypoint_seq: number;
+  lat: number;
+  lon: number;
+  package_desc: string | null;
+  delivered_at: string;
+  mission_code?: string | null;
+  drone_name?: string | null;
 }

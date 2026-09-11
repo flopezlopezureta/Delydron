@@ -1,3 +1,7 @@
+// A drone has one discharge gate per cargo bay — 4 bays, so at most 4
+// destinations (deliveries) per mission.
+const MAX_DESTINATIONS_PER_MISSION = 4;
+
 function isFiniteNumber(value) {
   return typeof value === 'number' && Number.isFinite(value);
 }
@@ -6,6 +10,9 @@ function isFiniteNumber(value) {
 function validateWaypoints(waypoints) {
   if (waypoints === undefined) return null;
   if (!Array.isArray(waypoints)) return 'waypoints must be an array';
+  if (waypoints.length > MAX_DESTINATIONS_PER_MISSION) {
+    return `a mission allows at most ${MAX_DESTINATIONS_PER_MISSION} destinations`;
+  }
 
   for (const [i, wp] of waypoints.entries()) {
     if (!wp || typeof wp !== 'object') return `waypoint[${i}] must be an object`;
@@ -23,4 +30,4 @@ function validateWaypoints(waypoints) {
   return null;
 }
 
-module.exports = { validateWaypoints };
+module.exports = { validateWaypoints, MAX_DESTINATIONS_PER_MISSION };

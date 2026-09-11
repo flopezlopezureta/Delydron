@@ -23,9 +23,13 @@ router.get('/stream', auth, (req, res) => {
   const onMissionStatus = (payload) => {
     res.write(`event: MISSION_STATUS\ndata: ${JSON.stringify(payload)}\n\n`);
   };
+  const onDelivery = (payload) => {
+    res.write(`event: DELIVERY\ndata: ${JSON.stringify(payload)}\n\n`);
+  };
 
   bus.on('fleet:telemetry', onTelemetry);
   bus.on('mission:status', onMissionStatus);
+  bus.on('delivery:completed', onDelivery);
 
   const heartbeat = setInterval(() => res.write(':hb\n\n'), HEARTBEAT_MS);
 
@@ -33,6 +37,7 @@ router.get('/stream', auth, (req, res) => {
     clearInterval(heartbeat);
     bus.off('fleet:telemetry', onTelemetry);
     bus.off('mission:status', onMissionStatus);
+    bus.off('delivery:completed', onDelivery);
   });
 });
 

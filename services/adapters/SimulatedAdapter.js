@@ -3,7 +3,8 @@ const { haversineMeters, interpolateAlongPath, bearingDeg } = require('../../uti
 const droneService = require('../droneService');
 const missionService = require('../missionService');
 const telemetryService = require('../telemetryService');
-const { publishTelemetry } = require('../telemetryBus');
+const deliveryService = require('../deliveryService');
+const { publishTelemetry, publishDelivery } = require('../telemetryBus');
 
 const TICK_MS = Number(process.env.SIM_TICK_MS) || 1000;
 const DEFAULT_SPEED_MPS = Number(process.env.SIM_DEFAULT_SPEED_MPS) || 12;
@@ -149,7 +150,24 @@ class SimulatedAdapter extends DroneAdapter {
       speedMps = 0;
       this.flights.delete(droneId);
     } else if (arrived) {
-      if (flight.targetIndex + 1 < flight.waypoints.length) {
+      const isFinalDestination = flight.targetIndex + 1 >= flight.waypoints.length;
+
+      // Reaching any real destination (not a return-to-home hop) opens that
+      // bay's discharge gate and logs the delivery, whether it's a stop
+      // along the way or the last one.
+      if (!flight.homeOnly) {
+        const delivery = await deliveryService.record({
+          missionId: flight.missionId,
+          droneId,
+          waypointSeq: target.seq,
+          lat: target.lat,
+          lon: target.lon,
+          packageDesc: target.package_desc,
+        });
+        publishDelivery(delivery);
+      }
+
+      if (!isFinalDestination) {
         flight.targetIndex += 1;
         if (flight.missionId) {
           await missionService.updateCurrentWaypoint(flight.missionId, target.seq);

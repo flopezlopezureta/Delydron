@@ -97,3 +97,17 @@ CREATE TABLE IF NOT EXISTS telemetry_log (
 );
 CREATE INDEX IF NOT EXISTS idx_telemetry_drone_time ON telemetry_log(drone_id, recorded_at DESC);
 CREATE INDEX IF NOT EXISTS idx_telemetry_mission ON telemetry_log(mission_id);
+
+-- DELIVERIES (one row per destination reached — the discharge-gate log) ---
+CREATE TABLE IF NOT EXISTS deliveries (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  mission_id UUID REFERENCES missions(id) ON DELETE SET NULL,
+  drone_id UUID REFERENCES drones(id) ON DELETE SET NULL,
+  waypoint_seq INT NOT NULL,
+  lat DOUBLE PRECISION NOT NULL,
+  lon DOUBLE PRECISION NOT NULL,
+  package_desc VARCHAR(255),
+  delivered_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_deliveries_mission ON deliveries(mission_id);
+CREATE INDEX IF NOT EXISTS idx_deliveries_delivered_at ON deliveries(delivered_at DESC);

@@ -12,4 +12,8 @@ function publishMissionStatus(payload) {
   bus.emit('mission:status', payload);
 }
 
-module.exports = { bus, publishTelemetry, publishMissionStatus };
+function publishDelivery(payload) {
+  bus.emit('delivery:completed', payload);
+}
+
+module.exports = { bus, publishTelemetry, publishMissionStatus, publishDelivery };

@@ -5,7 +5,7 @@ import { useBases } from '../hooks/useBases';
 import { createMission } from '../api/missions';
 import { WaypointPlannerMap } from '../components/map/WaypointPlannerMap';
 import { WaypointList } from '../components/missions/WaypointList';
-import type { Waypoint } from '../types';
+import { MAX_DESTINATIONS_PER_MISSION, type Waypoint } from '../types';
 
 const DEFAULT_CENTER: [number, number] = [-33.4489, -70.6693];
 const DEFAULT_ALT_M = 60;
@@ -34,7 +34,14 @@ export function MissionPlannerPage() {
   }, [drones.length]);
 
   function addWaypoint(lat: number, lon: number) {
-    setWaypoints((prev) => [...prev, { seq: prev.length + 1, lat, lon, alt_m: DEFAULT_ALT_M }]);
+    setError(null);
+    setWaypoints((prev) => {
+      if (prev.length >= MAX_DESTINATIONS_PER_MISSION) {
+        setError(`Un dron tiene ${MAX_DESTINATIONS_PER_MISSION} compuertas de descarga — no se pueden agregar más de ${MAX_DESTINATIONS_PER_MISSION} destinos.`);
+        return prev;
+      }
+      return [...prev, { seq: prev.length + 1, lat, lon, alt_m: DEFAULT_ALT_M }];
+    });
   }
 
   function moveWaypoint(index: number, lat: number, lon: number) {
@@ -43,6 +50,10 @@ export function MissionPlannerPage() {
 
   function changeAltitude(index: number, altM: number) {
     setWaypoints((prev) => prev.map((wp, i) => (i === index ? { ...wp, alt_m: altM } : wp)));
+  }
+
+  function changePackage(index: number, packageDesc: string) {
+    setWaypoints((prev) => prev.map((wp, i) => (i === index ? { ...wp, package_desc: packageDesc } : wp)));
   }
 
   function removeWaypoint(index: number) {
@@ -63,7 +74,7 @@ export function MissionPlannerPage() {
   async function handleCreate() {
     setError(null);
     if (waypoints.length < 1) {
-      setError('Agrega al menos un waypoint en el mapa.');
+      setError('Agrega al menos un destino en el mapa.');
       return;
     }
 
@@ -99,7 +110,10 @@ export function MissionPlannerPage() {
 
       <aside className="flex w-80 shrink-0 flex-col overflow-y-auto border-l border-slate-200 bg-white p-4">
         <h1 className="mb-1 text-sm font-semibold text-slate-800">Planificador de misión</h1>
-        <p className="mb-4 text-xs text-slate-500">Haz clic en el mapa para agregar waypoints en orden.</p>
+        <p className="mb-4 text-xs text-slate-500">
+          Haz clic en el mapa para agregar destinos en orden (hasta {MAX_DESTINATIONS_PER_MISSION}, uno por
+          compuerta de descarga).
+        </p>
 
         <div className="mb-3">
           <label className="mb-1 block text-xs text-slate-600">Dron (opcional al crear)</label>
@@ -172,9 +186,16 @@ export function MissionPlannerPage() {
           />
         </div>
 
-        <h2 className="mb-2 text-xs font-semibold uppercase text-slate-500">Waypoints</h2>
+        <h2 className="mb-2 text-xs font-semibold uppercase text-slate-500">
+          Destinos ({waypoints.length}/{MAX_DESTINATIONS_PER_MISSION})
+        </h2>
         <div className="mb-4 flex-1">
-          <WaypointList waypoints={waypoints} onAltitudeChange={changeAltitude} onRemove={removeWaypoint} />
+          <WaypointList
+            waypoints={waypoints}
+            onAltitudeChange={changeAltitude}
+            onPackageChange={changePackage}
+            onRemove={removeWaypoint}
+          />
         </div>
 
         {error && <div className="mb-3 text-sm text-red-600">{error}</div>}

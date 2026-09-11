@@ -1,10 +1,13 @@
 import { useEffect, useState } from 'react';
 import { apiBaseUrl, getToken } from '../api/client';
-import type { TelemetryPayload, MissionStatusPayload } from '../types';
+import type { TelemetryPayload, MissionStatusPayload, Delivery } from '../types';
+
+const MAX_LIVE_DELIVERIES = 100;
 
 export function useFleetTelemetry() {
   const [telemetryByDrone, setTelemetryByDrone] = useState<Record<string, TelemetryPayload>>({});
   const [missionStatusById, setMissionStatusById] = useState<Record<string, MissionStatusPayload>>({});
+  const [liveDeliveries, setLiveDeliveries] = useState<Delivery[]>([]);
 
   useEffect(() => {
     const token = getToken();
@@ -23,8 +26,13 @@ export function useFleetTelemetry() {
       setMissionStatusById((prev) => ({ ...prev, [payload.missionId]: payload }));
     });
 
+    es.addEventListener('DELIVERY', (event) => {
+      const payload: Delivery = JSON.parse((event as MessageEvent).data);
+      setLiveDeliveries((prev) => [payload, ...prev].slice(0, MAX_LIVE_DELIVERIES));
+    });
+
     return () => es.close();
   }, []);
 
-  return { telemetryByDrone, missionStatusById };
+  return { telemetryByDrone, missionStatusById, liveDeliveries };
 }
