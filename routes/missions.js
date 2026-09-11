@@ -4,6 +4,7 @@ const droneService = require('../services/droneService');
 const { getAdapter } = require('../services/adapterRegistry');
 const { auth } = require('../middleware/auth');
 const { asyncHandler } = require('../utils/asyncHandler');
+const { validateWaypoints } = require('../utils/validation');
 
 const router = express.Router();
 
@@ -30,6 +31,9 @@ router.post(
   '/',
   auth,
   asyncHandler(async (req, res) => {
+    const waypointsError = validateWaypoints(req.body?.waypoints);
+    if (waypointsError) return res.status(400).json({ error: waypointsError });
+
     const mission = await missionService.create({ ...req.body, createdBy: req.user.sub });
     res.status(201).json(mission);
   })
@@ -44,6 +48,10 @@ router.patch(
     if (!['draft', 'scheduled', 'assigned'].includes(existing.status)) {
       return res.status(409).json({ error: 'mission_not_editable' });
     }
+
+    const waypointsError = validateWaypoints(req.body?.waypoints);
+    if (waypointsError) return res.status(400).json({ error: waypointsError });
+
     res.json(await missionService.update(req.params.id, req.body || {}));
   })
 );
