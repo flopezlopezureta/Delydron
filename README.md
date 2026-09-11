@@ -43,8 +43,8 @@ Ver [.env.example](.env.example) (backend) y [client/.env.example](client/.env.e
 
 - [x] Fase 1 — scaffold, auth JWT, esquema de base de datos
 - [x] Fase 2 — adaptador simulado, mapa en vivo con telemetría SSE (checkpoint)
-- [ ] Fase 3 — despacho de misiones de punta a punta
-- [ ] Fase 4 — planificador visual de rutas (waypoints en el mapa)
+- [x] Fase 3 — despacho de misiones de punta a punta
+- [x] Fase 4 — planificador visual de rutas (waypoints en el mapa)
 
 ## Integración de hardware real (futuro, no implementado)
 
