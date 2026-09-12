@@ -147,6 +147,10 @@ class SimulatedAdapter extends DroneAdapter {
     const targetPoint = { lat: target.lat, lon: target.lon };
 
     const distRemaining = haversineMeters(current, targetPoint);
+    // Nominal cruise speed, not this tick's (possibly zeroed-out-on-arrival
+    // or battery-depleted) speed — an ETA that resets to null the instant
+    // the drone arrives or dies is useless, this reflects "at normal speed".
+    const etaSeconds = flight.speedMps > 0 ? Math.round(distRemaining / flight.speedMps) : null;
     const stepDist = flight.speedMps * (TICK_MS / 1000);
     const heading = bearingDeg(current, targetPoint);
     const arrived = stepDist >= distRemaining - ARRIVAL_EPSILON_M;
@@ -232,6 +236,8 @@ class SimulatedAdapter extends DroneAdapter {
       speedMps,
       batteryPct: drainedBattery,
       status,
+      phase: flight.missionId ? flight.phase : null,
+      etaSeconds: this.flights.has(droneId) ? etaSeconds : null,
     };
 
     await telemetryService.insert(payload);

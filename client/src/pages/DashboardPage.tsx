@@ -29,7 +29,7 @@ export function DashboardPage() {
         deliveries={liveDeliveries}
         telemetryByDrone={telemetryByDrone}
       />
-      <TelemetryHud drones={drones} telemetryByDrone={telemetryByDrone} />
+      <TelemetryHud drones={drones} telemetryByDrone={telemetryByDrone} missions={missions} />
       <MissionSummaryBar missions={missions} />
     </div>
   );

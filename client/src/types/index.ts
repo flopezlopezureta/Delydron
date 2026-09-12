@@ -82,6 +82,8 @@ export interface Mission {
   return_base_id: string | null;
   current_waypoint_seq: number;
   created_at: string;
+  started_at: string | null;
+  completed_at: string | null;
 }
 
 export interface TelemetryPayload {
@@ -94,6 +96,8 @@ export interface TelemetryPayload {
   speedMps: number;
   batteryPct: number;
   status: DroneStatus;
+  phase?: 'delivering' | 'returning' | null;
+  etaSeconds?: number | null;
 }
 
 export interface MissionStatusPayload {
