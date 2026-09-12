@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useDrones } from '../hooks/useDrones';
 import { useBases } from '../hooks/useBases';
 import { createMission, getMission, updateMission } from '../api/missions';
+import { geocodeAddress } from '../api/geocoding';
 import { WaypointPlannerMap } from '../components/map/WaypointPlannerMap';
 import { WaypointList } from '../components/missions/WaypointList';
 import { MAX_DESTINATIONS_PER_MISSION, type Waypoint } from '../types';
@@ -30,6 +31,7 @@ export function MissionPlannerPage() {
   const [waypoints, setWaypoints] = useState<Waypoint[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [searchingAddress, setSearchingAddress] = useState(false);
   // Blocks the first render (map included) until the source mission (to
   // edit or repeat) has loaded, so the map mounts already centered on its
   // route — it only reads `center` once, on mount, not on every prop change.
@@ -103,6 +105,27 @@ export function MissionPlannerPage() {
       [next[index], next[target]] = [next[target], next[index]];
       return next.map((wp, i) => ({ ...wp, seq: i + 1 }));
     });
+  }
+
+  // The address field is just a free-text label — it doesn't move anything
+  // on its own. This looks it up and drops a real waypoint there, so typing
+  // an address is actually enough instead of also having to click the map.
+  async function handleMarkDropoff() {
+    if (!dropoffAddress.trim()) return;
+    setError(null);
+    setSearchingAddress(true);
+    try {
+      const result = await geocodeAddress(dropoffAddress);
+      if (!result) {
+        setError('No se encontró esa dirección — probá con más detalle o marcá el punto directo en el mapa.');
+        return;
+      }
+      addWaypoint(result.lat, result.lon);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'No se pudo buscar la dirección.');
+    } finally {
+      setSearchingAddress(false);
+    }
   }
 
   function handlePickupBaseChange(id: string) {
@@ -227,11 +250,32 @@ export function MissionPlannerPage() {
 
         <div className="mb-3">
           <label className="mb-1 block text-xs text-slate-600">Dirección de entrega</label>
-          <input
-            value={dropoffAddress}
-            onChange={(e) => setDropoffAddress(e.target.value)}
-            className="w-full rounded border border-slate-300 px-2 py-1.5 text-sm"
-          />
+          <div className="flex gap-1">
+            <input
+              value={dropoffAddress}
+              onChange={(e) => setDropoffAddress(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  handleMarkDropoff();
+                }
+              }}
+              placeholder="Ej: Los Cerezos 5799, Peñalolén"
+              className="w-full rounded border border-slate-300 px-2 py-1.5 text-sm"
+            />
+            <button
+              type="button"
+              onClick={handleMarkDropoff}
+              disabled={searchingAddress || !dropoffAddress.trim()}
+              className="shrink-0 rounded border border-slate-300 px-2 py-1.5 text-xs text-slate-600 hover:bg-slate-50 disabled:opacity-50"
+            >
+              {searchingAddress ? '...' : 'Marcar'}
+            </button>
+          </div>
+          <p className="mt-1 text-xs text-slate-400">
+            Escribí la dirección y hacé clic en "Marcar" para ubicarla como destino, o marcá el punto directo en el
+            mapa.
+          </p>
         </div>
 
         <div className="mb-3">

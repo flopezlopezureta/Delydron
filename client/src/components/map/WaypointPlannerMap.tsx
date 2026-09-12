@@ -88,6 +88,16 @@ export function WaypointPlannerMap({ center, waypoints, onAddWaypoint, onMoveWay
         { color: '#2563eb', weight: 3, dashArray: '6 6' }
       ).addTo(map);
     }
+
+    // Keeps every destination in view — matters most for one added via
+    // address search, which could otherwise land far outside the current
+    // viewport with no visual sign it worked.
+    if (waypoints.length > 0) {
+      map.fitBounds(
+        L.latLngBounds(waypoints.map((wp) => [wp.lat, wp.lon] as [number, number])),
+        { padding: [60, 60], maxZoom: 17 }
+      );
+    }
   }, [waypoints]);
 
   return <div ref={containerRef} className="h-full w-full" />;
