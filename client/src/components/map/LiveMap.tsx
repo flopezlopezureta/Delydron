@@ -23,6 +23,7 @@ function makeBaseIcon() {
 
 const DEFAULT_CENTER: [number, number] = [-33.4489, -70.6693];
 const DEFAULT_ZOOM = 15;
+const MAX_ZOOM = 19; // matches the tile layer's own maxZoom — no point asking for more
 const ACTIVE_FLIGHT_STATUSES: DroneStatus[] = ['in_flight', 'returning'];
 
 function statusColor(status: DroneStatus | string) {
@@ -179,6 +180,14 @@ export function LiveMap({ drones, bases, missions, deliveries, telemetryByDrone 
     const map = mapRef.current;
     if (!map) return;
 
+    // Only auto-follow when exactly one drone is actually flying — with two
+    // or more at once, whichever's telemetry arrived last would keep
+    // yanking the view back and forth, which is worse than not following.
+    const activeDroneIds = Object.entries(telemetryByDrone)
+      .filter(([, t]) => ACTIVE_FLIGHT_STATUSES.includes(t.status))
+      .map(([id]) => id);
+    const soloActiveDroneId = activeDroneIds.length === 1 ? activeDroneIds[0] : null;
+
     for (const [droneId, telemetry] of Object.entries(telemetryByDrone)) {
       const label = droneById[droneId]?.name ?? droneId;
       let marker = markersRef.current[droneId];
@@ -195,6 +204,17 @@ export function LiveMap({ drones, bases, missions, deliveries, telemetryByDrone 
       }
 
       marker.setTooltipContent(`${label} · ${telemetry.status} · ${telemetry.batteryPct.toFixed(0)}%`);
+
+      // Camera: keep the one active drone centered as it flies, and snap in
+      // close the instant it reaches a leg (waypoint, return point, or a
+      // manual recall) — same "arrived" flag the simulator itself acted on.
+      if (droneId === soloActiveDroneId) {
+        if (telemetry.arrived) {
+          map.setView([telemetry.lat, telemetry.lon], MAX_ZOOM);
+        } else {
+          map.panTo([telemetry.lat, telemetry.lon]);
+        }
+      }
 
       // Flown trail: reset whenever the mission changes, then keep growing.
       if (trailMissionRef.current[droneId] !== telemetry.missionId) {

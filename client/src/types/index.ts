@@ -98,6 +98,7 @@ export interface TelemetryPayload {
   status: DroneStatus;
   phase?: 'delivering' | 'returning' | null;
   etaSeconds?: number | null;
+  arrived?: boolean;
 }
 
 export interface MissionStatusPayload {

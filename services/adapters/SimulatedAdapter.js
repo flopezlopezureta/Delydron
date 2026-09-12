@@ -238,6 +238,10 @@ class SimulatedAdapter extends DroneAdapter {
       status,
       phase: flight.missionId ? flight.phase : null,
       etaSeconds: this.flights.has(droneId) ? etaSeconds : null,
+      // True on the exact tick a leg is reached — a waypoint, the final
+      // return point, or a manual return-to-home — so the map can react to
+      // "just arrived" once instead of the client guessing from ETA.
+      arrived,
     };
 
     await telemetryService.insert(payload);
