@@ -22,7 +22,7 @@ app.use(
     contentSecurityPolicy: {
       directives: {
         ...helmet.contentSecurityPolicy.getDefaultDirectives(),
-        'img-src': ["'self'", 'data:', 'https://*.tile.openstreetmap.org'],
+        'img-src': ["'self'", 'data:', 'https://*.basemaps.cartocdn.com'],
       },
     },
   })
