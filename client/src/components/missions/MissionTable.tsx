@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
-import { abortMission, deleteMission, dispatchMission, repeatMission, updateMission } from '../../api/missions';
+import { Link } from 'react-router-dom';
+import { abortMission, deleteMission, dispatchMission, updateMission } from '../../api/missions';
 import { MissionStatusBadge } from './MissionStatusBadge';
 import type { Base, Drone, Mission, MissionStatusPayload } from '../../types';
 
@@ -131,13 +132,12 @@ export function MissionTable({ missions, drones, bases, liveStatusById, onChange
                       </button>
                     )}
                     {canRepeat && (
-                      <button
-                        disabled={busy}
-                        onClick={() => run(m.id, () => repeatMission(m.id))}
-                        className="rounded bg-indigo-600 px-2 py-1 text-xs font-medium text-white hover:bg-indigo-500 disabled:opacity-50"
+                      <Link
+                        to={`/missions/new?repeatFrom=${m.id}`}
+                        className="rounded bg-indigo-600 px-2 py-1 text-xs font-medium text-white hover:bg-indigo-500"
                       >
                         Repetir
-                      </button>
+                      </Link>
                     )}
                   </div>
                 </td>

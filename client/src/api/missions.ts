@@ -17,6 +17,10 @@ export function listMissions(): Promise<Mission[]> {
   return apiFetch<Mission[]>('/api/missions');
 }
 
+export function getMission(id: string): Promise<Mission> {
+  return apiFetch<Mission>(`/api/missions/${id}`);
+}
+
 export function createMission(input: MissionInput): Promise<Mission> {
   return apiFetch<Mission>('/api/missions', {
     method: 'POST',
@@ -41,8 +45,4 @@ export function dispatchMission(id: string): Promise<Mission> {
 
 export function abortMission(id: string): Promise<Mission> {
   return apiFetch<Mission>(`/api/missions/${id}/abort`, { method: 'POST' });
-}
-
-export function repeatMission(id: string): Promise<Mission> {
-  return apiFetch<Mission>(`/api/missions/${id}/repeat`, { method: 'POST' });
 }

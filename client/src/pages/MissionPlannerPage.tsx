@@ -1,8 +1,8 @@
-import { useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useMemo, useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useDrones } from '../hooks/useDrones';
 import { useBases } from '../hooks/useBases';
-import { createMission } from '../api/missions';
+import { createMission, getMission } from '../api/missions';
 import { WaypointPlannerMap } from '../components/map/WaypointPlannerMap';
 import { WaypointList } from '../components/missions/WaypointList';
 import { MAX_DESTINATIONS_PER_MISSION, type Waypoint } from '../types';
@@ -12,6 +12,8 @@ const DEFAULT_ALT_M = 60;
 
 export function MissionPlannerPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const repeatFrom = searchParams.get('repeatFrom');
   const { drones } = useDrones();
   const { bases } = useBases();
   const idleDrones = drones.filter((d) => d.status === 'idle');
@@ -26,13 +28,37 @@ export function MissionPlannerPage() {
   const [waypoints, setWaypoints] = useState<Waypoint[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  // Blocks the first render (map included) until the mission we're
+  // repeating has loaded, so the map mounts already centered on its route —
+  // it only reads `center` once, on mount, not on every prop change.
+  const [loadingRepeat, setLoadingRepeat] = useState(Boolean(repeatFrom));
+
+  useEffect(() => {
+    if (!repeatFrom) return;
+    getMission(repeatFrom)
+      .then((m) => {
+        setPriority(m.priority);
+        setPayloadDesc(m.payload_desc ?? '');
+        setPickupBaseId(m.pickup_base_id ?? '');
+        setPickupAddress(m.pickup_address ?? '');
+        setDropoffAddress(m.dropoff_address ?? '');
+        setReturnBaseId(m.return_base_id ?? '');
+        setWaypoints(m.waypoints ?? []);
+        // droneId is deliberately left unassigned — the drone that flew
+        // this last time may no longer be idle or even exist.
+      })
+      .catch((err) => setError(err instanceof Error ? err.message : 'No se pudo cargar la misión a repetir.'))
+      .finally(() => setLoadingRepeat(false));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [repeatFrom]);
 
   const mapCenter = useMemo<[number, number]>(() => {
+    if (waypoints.length > 0) return [waypoints[0].lat, waypoints[0].lon];
     const selected = drones.find((d) => d.id === droneId) ?? drones[0];
     if (selected) return [selected.lat ?? selected.home_lat, selected.lon ?? selected.home_lon];
     return DEFAULT_CENTER;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [drones.length]);
+  }, [drones.length, waypoints]);
 
   function addWaypoint(lat: number, lon: number) {
     setError(null);
@@ -99,6 +125,10 @@ export function MissionPlannerPage() {
     }
   }
 
+  if (loadingRepeat) {
+    return <div className="p-4 text-sm text-slate-500">Cargando misión...</div>;
+  }
+
   return (
     <div className="flex h-full">
       <div className="flex-1">
@@ -111,10 +141,13 @@ export function MissionPlannerPage() {
       </div>
 
       <aside className="flex w-80 shrink-0 flex-col overflow-y-auto border-l border-slate-200 bg-white p-4">
-        <h1 className="mb-1 text-sm font-semibold text-slate-800">Planificador de misión</h1>
+        <h1 className="mb-1 text-sm font-semibold text-slate-800">
+          {repeatFrom ? 'Repetir misión' : 'Planificador de misión'}
+        </h1>
         <p className="mb-4 text-xs text-slate-500">
-          Haz clic en el mapa para agregar destinos en orden (hasta {MAX_DESTINATIONS_PER_MISSION}, uno por
-          compuerta de descarga).
+          {repeatFrom
+            ? 'Misma ruta y carga que la original — revisá o ajustá antes de asignar un dron.'
+            : `Haz clic en el mapa para agregar destinos en orden (hasta ${MAX_DESTINATIONS_PER_MISSION}, uno por compuerta de descarga).`}
         </p>
 
         <div className="mb-3">
