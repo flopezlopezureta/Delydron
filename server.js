@@ -23,6 +23,7 @@ app.use(
       directives: {
         ...helmet.contentSecurityPolicy.getDefaultDirectives(),
         'img-src': ["'self'", 'data:', 'https://api.maptiler.com'],
+        'connect-src': ["'self'", 'https://api.maptiler.com'],
       },
     },
   })
