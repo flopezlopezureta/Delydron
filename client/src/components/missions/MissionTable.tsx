@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { abortMission, deleteMission, dispatchMission, updateMission } from '../../api/missions';
+import { abortMission, deleteMission, dispatchMission, repeatMission, updateMission } from '../../api/missions';
 import { MissionStatusBadge } from './MissionStatusBadge';
 import type { Base, Drone, Mission, MissionStatusPayload } from '../../types';
 
@@ -65,6 +65,7 @@ export function MissionTable({ missions, drones, bases, liveStatusById, onChange
             const canDispatch = ['draft', 'scheduled', 'assigned'].includes(status) && m.drone_id;
             const canAbort = ['assigned', 'in_progress'].includes(status);
             const canDelete = status === 'draft';
+            const canRepeat = ['completed', 'aborted', 'failed'].includes(status);
             const canEditReturn = ['draft', 'scheduled', 'assigned'].includes(status);
             const busy = busyId === m.id;
 
@@ -127,6 +128,15 @@ export function MissionTable({ missions, drones, bases, liveStatusById, onChange
                         className="rounded border border-slate-300 px-2 py-1 text-xs text-slate-600 hover:bg-slate-50 disabled:opacity-50"
                       >
                         Eliminar
+                      </button>
+                    )}
+                    {canRepeat && (
+                      <button
+                        disabled={busy}
+                        onClick={() => run(m.id, () => repeatMission(m.id))}
+                        className="rounded bg-indigo-600 px-2 py-1 text-xs font-medium text-white hover:bg-indigo-500 disabled:opacity-50"
+                      >
+                        Repetir
                       </button>
                     )}
                   </div>

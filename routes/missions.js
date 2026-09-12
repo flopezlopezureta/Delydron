@@ -109,4 +109,28 @@ router.post(
   })
 );
 
+router.post(
+  '/:id/repeat',
+  auth,
+  asyncHandler(async (req, res) => {
+    const existing = await missionService.getById(req.params.id);
+    if (!existing) return res.status(404).json({ error: 'not_found' });
+
+    // Fresh draft with the same route/payload — no drone_id, since the one
+    // that flew it last time may no longer be idle or even exist; the
+    // dispatcher assigns one again like any new mission.
+    const mission = await missionService.create({
+      createdBy: req.user.sub,
+      priority: existing.priority,
+      waypoints: existing.waypoints,
+      payloadDesc: existing.payload_desc,
+      pickupBaseId: existing.pickup_base_id,
+      pickupAddress: existing.pickup_address,
+      dropoffAddress: existing.dropoff_address,
+      returnBaseId: existing.return_base_id,
+    });
+    res.status(201).json(mission);
+  })
+);
+
 module.exports = router;

@@ -42,3 +42,7 @@ export function dispatchMission(id: string): Promise<Mission> {
 export function abortMission(id: string): Promise<Mission> {
   return apiFetch<Mission>(`/api/missions/${id}/abort`, { method: 'POST' });
 }
+
+export function repeatMission(id: string): Promise<Mission> {
+  return apiFetch<Mission>(`/api/missions/${id}/repeat`, { method: 'POST' });
+}
