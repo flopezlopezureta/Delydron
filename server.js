@@ -22,7 +22,7 @@ app.use(
     contentSecurityPolicy: {
       directives: {
         ...helmet.contentSecurityPolicy.getDefaultDirectives(),
-        'img-src': ["'self'", 'data:', 'https://*.basemaps.cartocdn.com'],
+        'img-src': ["'self'", 'data:', 'https://api.maptiler.com'],
       },
     },
   })
