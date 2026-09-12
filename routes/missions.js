@@ -96,14 +96,18 @@ router.post(
   asyncHandler(async (req, res) => {
     const mission = await missionService.getById(req.params.id);
     if (!mission) return res.status(404).json({ error: 'not_found' });
-    if (!['assigned', 'in_progress'].includes(mission.status)) {
+    // Cancellable at any point before it reaches a terminal state — a
+    // 'scheduled' order that the client cancels is just as real a
+    // cancellation as one aborted mid-flight, and both should leave a
+    // record (unlike a plain 'draft' delete, which is for mistakes/tests).
+    if (!['draft', 'scheduled', 'assigned', 'in_progress'].includes(mission.status)) {
       return res.status(409).json({ error: 'invalid_status' });
     }
 
     if (mission.status === 'in_progress' && mission.drone_id) {
-      await getAdapter().abortMission(mission.drone_id);
+      await getAdapter().abortMission(mission.drone_id, req.body?.reason);
     } else {
-      await missionService.updateStatus(mission.id, 'aborted');
+      await missionService.updateStatus(mission.id, 'aborted', { notes: req.body?.reason });
     }
     res.json(await missionService.getById(req.params.id));
   })

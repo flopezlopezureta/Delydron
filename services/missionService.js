@@ -22,8 +22,15 @@ async function list({ status, droneId } = {}) {
   let i = 1;
 
   if (status) {
-    clauses.push(`status = $${i++}`);
-    values.push(status);
+    // Comma-separated for grouped filters like "draft,scheduled,assigned".
+    const statuses = status.split(',').map((s) => s.trim()).filter(Boolean);
+    if (statuses.length === 1) {
+      clauses.push(`status = $${i++}`);
+      values.push(statuses[0]);
+    } else if (statuses.length > 1) {
+      clauses.push(`status = ANY($${i++})`);
+      values.push(statuses);
+    }
   }
   if (droneId) {
     clauses.push(`drone_id = $${i++}`);

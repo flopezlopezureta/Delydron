@@ -85,12 +85,12 @@ class SimulatedAdapter extends DroneAdapter {
     }
   }
 
-  async abortMission(droneId) {
+  async abortMission(droneId, reason) {
     const flight = this.flights.get(droneId);
     this.flights.delete(droneId);
     await droneService.updateStatus(droneId, 'idle');
     if (flight && flight.missionId) {
-      await missionService.updateStatus(flight.missionId, 'aborted', { notes: 'aborted_by_operator' });
+      await missionService.updateStatus(flight.missionId, 'aborted', { notes: reason || 'aborted_by_operator' });
     }
   }
 

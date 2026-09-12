@@ -16,6 +16,8 @@ export function MissionTable({ missions, drones, bases, liveStatusById, onChange
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  const idleDrones = useMemo(() => drones.filter((d) => d.status === 'idle'), [drones]);
+
   const droneNameById = useMemo(() => {
     const map: Record<string, string> = {};
     for (const d of drones) map[d.id] = d.name;
@@ -41,6 +43,12 @@ export function MissionTable({ missions, drones, bases, liveStatusById, onChange
     }
   }
 
+  function handleCancel(m: Mission) {
+    const reason = window.prompt('Motivo de la cancelación (opcional):');
+    if (reason === null) return; // backed out of the prompt itself, not just left it blank
+    run(m.id, () => abortMission(m.id, reason || undefined));
+  }
+
   if (missions.length === 0) {
     return <div className="p-4 text-sm text-slate-400">No hay misiones todavía.</div>;
   }
@@ -64,22 +72,40 @@ export function MissionTable({ missions, drones, bases, liveStatusById, onChange
           {missions.map((m) => {
             const status = liveStatusById[m.id]?.status ?? m.status;
             const canDispatch = ['draft', 'scheduled', 'assigned'].includes(status) && m.drone_id;
-            const canAbort = ['assigned', 'in_progress'].includes(status);
+            const canCancel = ['draft', 'scheduled', 'assigned', 'in_progress'].includes(status);
             const canDelete = status === 'draft';
             const canRepeat = ['completed', 'aborted', 'failed'].includes(status);
-            const canEditReturn = ['draft', 'scheduled', 'assigned'].includes(status);
+            const canEdit = ['draft', 'scheduled', 'assigned'].includes(status);
             const busy = busyId === m.id;
 
             return (
               <tr key={m.id}>
                 <td className="px-4 py-2 font-mono text-xs">{m.code}</td>
-                <td className="px-4 py-2">{m.drone_id ? droneNameById[m.drone_id] ?? m.drone_id : '—'}</td>
+                <td className="px-4 py-2">
+                  {canEdit ? (
+                    <select
+                      disabled={busy}
+                      value={m.drone_id ?? ''}
+                      onChange={(e) => run(m.id, () => updateMission(m.id, { droneId: e.target.value || null }))}
+                      className="rounded border border-slate-300 px-1.5 py-1 text-xs disabled:opacity-50"
+                    >
+                      <option value="">Sin asignar</option>
+                      {idleDrones.map((d) => (
+                        <option key={d.id} value={d.id}>
+                          {d.name}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <span>{m.drone_id ? droneNameById[m.drone_id] ?? m.drone_id : '—'}</span>
+                  )}
+                </td>
                 <td className="px-4 py-2">
                   <MissionStatusBadge status={status} />
                 </td>
                 <td className="px-4 py-2">{m.priority}</td>
                 <td className="px-4 py-2">
-                  {canEditReturn ? (
+                  {canEdit ? (
                     <select
                       disabled={busy}
                       value={m.return_base_id ?? ''}
@@ -103,7 +129,7 @@ export function MissionTable({ missions, drones, bases, liveStatusById, onChange
                 </td>
                 <td className="px-4 py-2 text-slate-500">{new Date(m.created_at).toLocaleString('es-CL')}</td>
                 <td className="px-4 py-2">
-                  <div className="flex gap-2">
+                  <div className="flex flex-wrap gap-2">
                     {canDispatch && (
                       <button
                         disabled={busy}
@@ -113,13 +139,21 @@ export function MissionTable({ missions, drones, bases, liveStatusById, onChange
                         Despachar
                       </button>
                     )}
-                    {canAbort && (
+                    {canEdit && (
+                      <Link
+                        to={`/missions/new?editId=${m.id}`}
+                        className="rounded border border-slate-300 px-2 py-1 text-xs text-slate-600 hover:bg-slate-50"
+                      >
+                        Editar
+                      </Link>
+                    )}
+                    {canCancel && (
                       <button
                         disabled={busy}
-                        onClick={() => run(m.id, () => abortMission(m.id))}
+                        onClick={() => handleCancel(m)}
                         className="rounded bg-amber-600 px-2 py-1 text-xs font-medium text-white hover:bg-amber-500 disabled:opacity-50"
                       >
-                        Abortar
+                        Cancelar
                       </button>
                     )}
                     {canDelete && (

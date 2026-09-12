@@ -13,8 +13,9 @@ export interface MissionInput {
   notes?: string;
 }
 
-export function listMissions(): Promise<Mission[]> {
-  return apiFetch<Mission[]>('/api/missions');
+export function listMissions(status?: string): Promise<Mission[]> {
+  const query = status ? `?status=${encodeURIComponent(status)}` : '';
+  return apiFetch<Mission[]>(`/api/missions${query}`);
 }
 
 export function getMission(id: string): Promise<Mission> {
@@ -43,6 +44,9 @@ export function dispatchMission(id: string): Promise<Mission> {
   return apiFetch<Mission>(`/api/missions/${id}/dispatch`, { method: 'POST' });
 }
 
-export function abortMission(id: string): Promise<Mission> {
-  return apiFetch<Mission>(`/api/missions/${id}/abort`, { method: 'POST' });
+export function abortMission(id: string, reason?: string): Promise<Mission> {
+  return apiFetch<Mission>(`/api/missions/${id}/abort`, {
+    method: 'POST',
+    body: JSON.stringify({ reason }),
+  });
 }

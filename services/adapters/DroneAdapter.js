@@ -27,7 +27,7 @@ class DroneAdapter {
     throw new Error('startMission() not implemented');
   }
 
-  async abortMission(droneId) {
+  async abortMission(droneId, reason) {
     throw new Error('abortMission() not implemented');
   }
 

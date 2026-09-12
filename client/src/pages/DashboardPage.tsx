@@ -4,6 +4,7 @@ import { useMissions } from '../hooks/useMissions';
 import { useFleetTelemetry } from '../hooks/useFleetTelemetry';
 import { LiveMap } from '../components/map/LiveMap';
 import { TelemetryHud } from '../components/map/TelemetryHud';
+import { MissionSummaryBar } from '../components/missions/MissionSummaryBar';
 
 export function DashboardPage() {
   const { drones, loading, error } = useDrones();
@@ -29,6 +30,7 @@ export function DashboardPage() {
         telemetryByDrone={telemetryByDrone}
       />
       <TelemetryHud drones={drones} telemetryByDrone={telemetryByDrone} />
+      <MissionSummaryBar missions={missions} />
     </div>
   );
 }

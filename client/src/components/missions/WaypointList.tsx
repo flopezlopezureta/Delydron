@@ -5,9 +5,10 @@ interface WaypointListProps {
   onAltitudeChange: (index: number, altM: number) => void;
   onPackageChange: (index: number, packageDesc: string) => void;
   onRemove: (index: number) => void;
+  onReorder: (index: number, direction: -1 | 1) => void;
 }
 
-export function WaypointList({ waypoints, onAltitudeChange, onPackageChange, onRemove }: WaypointListProps) {
+export function WaypointList({ waypoints, onAltitudeChange, onPackageChange, onRemove, onReorder }: WaypointListProps) {
   if (waypoints.length === 0) {
     return <div className="text-sm text-slate-400">Haz clic en el mapa para agregar destinos.</div>;
   }
@@ -20,6 +21,26 @@ export function WaypointList({ waypoints, onAltitudeChange, onPackageChange, onR
             <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-blue-600 text-xs font-semibold text-white">
               {wp.seq}
             </span>
+            <div className="flex shrink-0 flex-col">
+              <button
+                type="button"
+                disabled={index === 0}
+                onClick={() => onReorder(index, -1)}
+                className="leading-none text-slate-400 hover:text-slate-700 disabled:opacity-25"
+                title="Mover antes"
+              >
+                ▲
+              </button>
+              <button
+                type="button"
+                disabled={index === waypoints.length - 1}
+                onClick={() => onReorder(index, 1)}
+                className="leading-none text-slate-400 hover:text-slate-700 disabled:opacity-25"
+                title="Mover después"
+              >
+                ▼
+              </button>
+            </div>
             <span className="flex-1 font-mono text-xs text-slate-600">
               {wp.lat.toFixed(5)}, {wp.lon.toFixed(5)}
             </span>
