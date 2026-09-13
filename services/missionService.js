@@ -123,19 +123,24 @@ async function update(id, fields) {
   const sets = [];
   const values = [];
   let i = 1;
+  let droneIdParam = null;
   for (const [column, value] of Object.entries(allowed)) {
     if (value !== undefined) {
-      sets.push(`${column} = $${i++}`);
+      sets.push(`${column} = $${i}`);
       values.push(value);
+      if (column === 'drone_id') droneIdParam = i;
+      i++;
     }
   }
   if (!sets.length) return getById(id);
 
   // Assigning a drone to a still-draft mission also moves it to 'assigned'.
-  if (allowed.drone_id !== undefined) {
-    sets.push(`status = CASE WHEN status = 'draft' AND $${i} IS NOT NULL THEN 'assigned' ELSE status END`);
-    values.push(allowed.drone_id);
-    i++;
+  // Reuses the same $N bound above for drone_id — a second parameter here
+  // just for "IS NOT NULL" gives Postgres no column/literal to infer its
+  // type from and fails with 42P18 (could not determine data type of
+  // parameter), even though the value is identical.
+  if (droneIdParam !== null) {
+    sets.push(`status = CASE WHEN status = 'draft' AND $${droneIdParam} IS NOT NULL THEN 'assigned' ELSE status END`);
   }
 
   values.push(id);
