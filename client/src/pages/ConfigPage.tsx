@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useDrones } from '../hooks/useDrones';
 import { createDrone } from '../api/drones';
+import { geocodeAddress } from '../api/geocoding';
 import { getSettings, updateSettings, type Settings } from '../api/settings';
 import { BasePickerMap } from '../components/bases/BasePickerMap';
 
@@ -15,9 +16,11 @@ export function ConfigPage() {
   const [model, setModel] = useState('');
   const [maxSpeedMps, setMaxSpeedMps] = useState('');
   const [maxRangeKm, setMaxRangeKm] = useState('');
+  const [homeAddress, setHomeAddress] = useState('');
   const [point, setPoint] = useState<{ lat: number; lon: number } | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [searchingAddress, setSearchingAddress] = useState(false);
 
   const [settings, setSettings] = useState<Settings | null>(null);
   const [settingsSaving, setSettingsSaving] = useState(false);
@@ -33,9 +36,31 @@ export function ConfigPage() {
     setModel('');
     setMaxSpeedMps('');
     setMaxRangeKm('');
+    setHomeAddress('');
     setPoint(null);
     setFormError(null);
     setShowForm(false);
+  }
+
+  // Not persisted anywhere — drones only store lat/lon, no address column —
+  // this is purely a shortcut to fill the map picker without hunting for
+  // the spot by hand, same as the Bases and mission-planner address search.
+  async function handleFindHomeAddress() {
+    if (!homeAddress.trim()) return;
+    setFormError(null);
+    setSearchingAddress(true);
+    try {
+      const result = await geocodeAddress(homeAddress);
+      if (!result) {
+        setFormError('No se encontró esa dirección — probá con más detalle o marcá el punto directo en el mapa.');
+        return;
+      }
+      setPoint({ lat: result.lat, lon: result.lon });
+    } catch (err) {
+      setFormError(err instanceof Error ? err.message : 'No se pudo buscar la dirección.');
+    } finally {
+      setSearchingAddress(false);
+    }
   }
 
   async function handleCreateDrone() {
@@ -202,10 +227,32 @@ export function ConfigPage() {
                   />
                 </div>
               </div>
+              <label className="mb-1 block text-xs text-slate-600">Buscar dirección de base de origen</label>
+              <div className="mb-1 flex gap-1">
+                <input
+                  value={homeAddress}
+                  onChange={(e) => setHomeAddress(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      handleFindHomeAddress();
+                    }
+                  }}
+                  className="w-full rounded border border-slate-300 px-2 py-1.5 text-sm"
+                />
+                <button
+                  type="button"
+                  onClick={handleFindHomeAddress}
+                  disabled={searchingAddress || !homeAddress.trim()}
+                  className="shrink-0 rounded border border-slate-300 px-2 py-1.5 text-xs text-slate-600 hover:bg-slate-50 disabled:opacity-50"
+                >
+                  {searchingAddress ? '...' : 'Buscar'}
+                </button>
+              </div>
               <p className="mb-3 text-xs text-slate-500">
                 {point
                   ? `Base de origen: ${point.lat.toFixed(5)}, ${point.lon.toFixed(5)}`
-                  : 'Hacé clic en el mapa para ubicar su base de origen.'}
+                  : 'Buscá la dirección o hacé clic directo en el mapa.'}
               </p>
               {formError && <div className="mb-3 text-sm text-red-600">{formError}</div>}
               <div className="mt-auto flex gap-2">
