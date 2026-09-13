@@ -17,6 +17,13 @@ const PORT = process.env.PORT || 3000;
 
 const app = express();
 
+// Only reachable via Cloudflare Tunnel -> coolify-proxy — no direct/public
+// port, so the X-Forwarded-For chain those add is trustworthy. Without
+// this, express-rate-limit can't tell real visitors apart by IP and lumps
+// them into one shared bucket (and logs an ERR_ERL_UNEXPECTED_X_FORWARDED_FOR
+// warning on every request).
+app.set('trust proxy', true);
+
 app.use(
   helmet({
     contentSecurityPolicy: {
