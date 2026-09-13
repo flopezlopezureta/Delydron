@@ -23,14 +23,16 @@ const ARRIVAL_EPSILON_M = 2;
 // telemetry every tick. The `drones` row is always the source of truth for
 // position, so restarting the server just resumes the current leg.
 //
-// A mission flight has two phases: 'delivering' (working through the real
-// destinations, opening a gate at each) then 'returning' (flying to the
-// mission's return base, or the drone's own home if none was set) before
-// the mission is actually marked completed.
+// A mission flight has up to three phases: an optional 'picking_up' (flying
+// to the mission's pickup base first, only when one is linked and the
+// mission hasn't started its route yet), then 'delivering' (working through
+// the real destinations, opening a gate at each), then 'returning' (flying
+// to the mission's return base, or the drone's own home if none was set)
+// before the mission is actually marked completed.
 class SimulatedAdapter extends DroneAdapter {
   constructor(deps) {
     super(deps);
-    // droneId -> { missionId, waypoints, targetIndex, speedMps, homeOnly, phase, returnPoint, dischargeUntil }
+    // droneId -> { missionId, waypoints, targetIndex, speedMps, homeOnly, phase, returnPoint, pickupPoint, dischargeUntil }
     this.flights = new Map();
     this.timer = null;
   }
@@ -63,6 +65,18 @@ class SimulatedAdapter extends DroneAdapter {
     return { lat: drone.home_lat, lon: drone.home_lon };
   }
 
+  // Only resolvable from a linked base — a free-typed pickup_address with no
+  // pickup_base_id has no coordinates to fly to, so that case is left for
+  // startMission to skip (drone departs straight from wherever it is, same
+  // as today) rather than guessing a location.
+  async resolvePickupPoint(missionRow) {
+    if (missionRow.pickup_base_id) {
+      const base = await baseService.getById(missionRow.pickup_base_id);
+      if (base) return { lat: base.lat, lon: base.lon };
+    }
+    return null;
+  }
+
   async startMission(droneId, missionRow) {
     const drone = await droneService.getById(droneId);
     if (!drone) throw new Error(`Unknown drone ${droneId}`);
@@ -71,17 +85,23 @@ class SimulatedAdapter extends DroneAdapter {
     const lastDone = missionRow.current_waypoint_seq || 0;
     const targetIndex = waypoints.findIndex((wp) => wp.seq > lastDone);
     const returnPoint = await this.resolveReturnPoint(missionRow, drone);
+    // Only fly an explicit pickup leg on a fresh start (lastDone === 0) —
+    // once any real destination has been reached the pickup already
+    // happened, whether that was this boot or one before a restart.
+    const pickupPoint = lastDone === 0 ? await this.resolvePickupPoint(missionRow) : null;
     const speedMps = Number(drone.max_speed_mps) || DEFAULT_SPEED_MPS;
 
     // No real destinations left (e.g. resuming after a restart that
     // happened mid-return) — skip straight to flying the return leg.
-    const phase = targetIndex === -1 ? 'returning' : 'delivering';
+    // Otherwise go via the pickup base first if the mission has one linked.
+    const phase = targetIndex === -1 ? 'returning' : pickupPoint ? 'picking_up' : 'delivering';
 
     this.flights.set(droneId, {
       missionId: missionRow.id,
       waypoints,
       targetIndex: targetIndex === -1 ? waypoints.length : targetIndex,
       speedMps,
+      pickupPoint,
       homeOnly: false,
       phase,
       returnPoint,
@@ -219,7 +239,9 @@ class SimulatedAdapter extends DroneAdapter {
     const target =
       flight.phase === 'returning'
         ? { seq: null, lat: flight.returnPoint.lat, lon: flight.returnPoint.lon, alt_m: 0 }
-        : flight.waypoints[flight.targetIndex];
+        : flight.phase === 'picking_up'
+          ? { seq: null, lat: flight.pickupPoint.lat, lon: flight.pickupPoint.lon, alt_m: 0 }
+          : flight.waypoints[flight.targetIndex];
     const targetPoint = { lat: target.lat, lon: target.lon };
 
     const distRemaining = haversineMeters(current, targetPoint);
@@ -254,6 +276,10 @@ class SimulatedAdapter extends DroneAdapter {
       speedMps = 0;
       this.flights.delete(droneId);
       await droneService.updateStatus(droneId, 'idle');
+    } else if (arrived && flight.phase === 'picking_up') {
+      // Package loaded — proceed to the real destinations. Status stays
+      // 'in_flight' throughout, same as the leg before and after this one.
+      flight.phase = 'delivering';
     } else if (arrived && flight.phase === 'delivering') {
       // Reaching a real destination opens that bay's discharge gate and
       // logs the delivery, then holds here for SIM_DISCHARGE_SECONDS before
