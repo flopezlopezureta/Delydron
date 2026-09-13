@@ -1,14 +1,12 @@
 import { useEffect, useState } from 'react';
 import { useDrones } from '../hooks/useDrones';
+import { useBases } from '../hooks/useBases';
 import { createDrone } from '../api/drones';
-import { geocodeAddress } from '../api/geocoding';
 import { getSettings, updateSettings, type Settings } from '../api/settings';
-import { BasePickerMap } from '../components/bases/BasePickerMap';
-
-const DEFAULT_CENTER: [number, number] = [-33.4489, -70.6693];
 
 export function ConfigPage() {
   const { drones, loading, error, refetch } = useDrones();
+  const { bases } = useBases();
 
   const [showForm, setShowForm] = useState(false);
   const [name, setName] = useState('');
@@ -16,11 +14,9 @@ export function ConfigPage() {
   const [model, setModel] = useState('');
   const [maxSpeedMps, setMaxSpeedMps] = useState('');
   const [maxRangeKm, setMaxRangeKm] = useState('');
-  const [homeAddress, setHomeAddress] = useState('');
-  const [point, setPoint] = useState<{ lat: number; lon: number } | null>(null);
+  const [homeBaseId, setHomeBaseId] = useState('');
   const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const [searchingAddress, setSearchingAddress] = useState(false);
 
   const [settings, setSettings] = useState<Settings | null>(null);
   const [settingsSaving, setSettingsSaving] = useState(false);
@@ -36,37 +32,16 @@ export function ConfigPage() {
     setModel('');
     setMaxSpeedMps('');
     setMaxRangeKm('');
-    setHomeAddress('');
-    setPoint(null);
+    setHomeBaseId('');
     setFormError(null);
     setShowForm(false);
-  }
-
-  // Not persisted anywhere — drones only store lat/lon, no address column —
-  // this is purely a shortcut to fill the map picker without hunting for
-  // the spot by hand, same as the Bases and mission-planner address search.
-  async function handleFindHomeAddress() {
-    if (!homeAddress.trim()) return;
-    setFormError(null);
-    setSearchingAddress(true);
-    try {
-      const result = await geocodeAddress(homeAddress);
-      if (!result) {
-        setFormError('No se encontró esa dirección — probá con más detalle o marcá el punto directo en el mapa.');
-        return;
-      }
-      setPoint({ lat: result.lat, lon: result.lon });
-    } catch (err) {
-      setFormError(err instanceof Error ? err.message : 'No se pudo buscar la dirección.');
-    } finally {
-      setSearchingAddress(false);
-    }
   }
 
   async function handleCreateDrone() {
     setFormError(null);
     if (!name.trim()) return setFormError('Ponle un nombre al dron.');
-    if (!point) return setFormError('Hacé clic en el mapa para ubicar su base de origen.');
+    const base = bases.find((b) => b.id === homeBaseId);
+    if (!base) return setFormError('Elegí la base de origen del dron.');
 
     setSubmitting(true);
     try {
@@ -74,8 +49,8 @@ export function ConfigPage() {
         name,
         serialNumber: serialNumber || undefined,
         model: model || undefined,
-        homeLat: point.lat,
-        homeLon: point.lon,
+        homeLat: base.lat,
+        homeLon: base.lon,
         maxSpeedMps: maxSpeedMps ? Number(maxSpeedMps) : undefined,
         maxRangeKm: maxRangeKm ? Number(maxRangeKm) : undefined,
       });
@@ -174,102 +149,88 @@ export function ConfigPage() {
         </div>
 
         {showForm && (
-          <div className="mb-4 flex gap-4 rounded-lg border border-slate-200 bg-white p-4">
-            <div className="h-80 w-96 shrink-0 overflow-hidden rounded border border-slate-200">
-              <BasePickerMap center={DEFAULT_CENTER} point={point} onPick={(lat, lon) => setPoint({ lat, lon })} />
-            </div>
-            <div className="flex flex-1 flex-col">
-              <label className="mb-1 block text-xs text-slate-600">Nombre</label>
-              <input
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                className="mb-3 w-full rounded border border-slate-300 px-2 py-1.5 text-sm"
-              />
-              <div className="mb-3 grid grid-cols-2 gap-3">
-                <div>
-                  <label className="mb-1 block text-xs text-slate-600">N° de serie</label>
-                  <input
-                    value={serialNumber}
-                    onChange={(e) => setSerialNumber(e.target.value)}
-                    className="w-full rounded border border-slate-300 px-2 py-1.5 text-sm"
-                  />
-                </div>
-                <div>
-                  <label className="mb-1 block text-xs text-slate-600">Modelo</label>
-                  <input
-                    value={model}
-                    onChange={(e) => setModel(e.target.value)}
-                    className="w-full rounded border border-slate-300 px-2 py-1.5 text-sm"
-                  />
-                </div>
-              </div>
-              <div className="mb-3 grid grid-cols-2 gap-3">
-                <div>
-                  <label className="mb-1 block text-xs text-slate-600">Velocidad máx. (m/s)</label>
-                  <input
-                    type="number"
-                    min={0}
-                    value={maxSpeedMps}
-                    onChange={(e) => setMaxSpeedMps(e.target.value)}
-                    placeholder="15"
-                    className="w-full rounded border border-slate-300 px-2 py-1.5 text-sm"
-                  />
-                </div>
-                <div>
-                  <label className="mb-1 block text-xs text-slate-600">Autonomía (km)</label>
-                  <input
-                    type="number"
-                    min={0}
-                    value={maxRangeKm}
-                    onChange={(e) => setMaxRangeKm(e.target.value)}
-                    placeholder="10"
-                    className="w-full rounded border border-slate-300 px-2 py-1.5 text-sm"
-                  />
-                </div>
-              </div>
-              <label className="mb-1 block text-xs text-slate-600">Buscar dirección de base de origen</label>
-              <div className="mb-1 flex gap-1">
+          <div className="mb-4 max-w-lg rounded-lg border border-slate-200 bg-white p-4">
+            <label className="mb-1 block text-xs text-slate-600">Nombre</label>
+            <input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className="mb-3 w-full rounded border border-slate-300 px-2 py-1.5 text-sm"
+            />
+            <div className="mb-3 grid grid-cols-2 gap-3">
+              <div>
+                <label className="mb-1 block text-xs text-slate-600">N° de serie</label>
                 <input
-                  value={homeAddress}
-                  onChange={(e) => setHomeAddress(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      e.preventDefault();
-                      handleFindHomeAddress();
-                    }
-                  }}
+                  value={serialNumber}
+                  onChange={(e) => setSerialNumber(e.target.value)}
                   className="w-full rounded border border-slate-300 px-2 py-1.5 text-sm"
                 />
-                <button
-                  type="button"
-                  onClick={handleFindHomeAddress}
-                  disabled={searchingAddress || !homeAddress.trim()}
-                  className="shrink-0 rounded border border-slate-300 px-2 py-1.5 text-xs text-slate-600 hover:bg-slate-50 disabled:opacity-50"
-                >
-                  {searchingAddress ? '...' : 'Buscar'}
-                </button>
               </div>
-              <p className="mb-3 text-xs text-slate-500">
-                {point
-                  ? `Base de origen: ${point.lat.toFixed(5)}, ${point.lon.toFixed(5)}`
-                  : 'Buscá la dirección o hacé clic directo en el mapa.'}
+              <div>
+                <label className="mb-1 block text-xs text-slate-600">Modelo</label>
+                <input
+                  value={model}
+                  onChange={(e) => setModel(e.target.value)}
+                  className="w-full rounded border border-slate-300 px-2 py-1.5 text-sm"
+                />
+              </div>
+            </div>
+            <div className="mb-3 grid grid-cols-2 gap-3">
+              <div>
+                <label className="mb-1 block text-xs text-slate-600">Velocidad máx. (m/s)</label>
+                <input
+                  type="number"
+                  min={0}
+                  value={maxSpeedMps}
+                  onChange={(e) => setMaxSpeedMps(e.target.value)}
+                  placeholder="15"
+                  className="w-full rounded border border-slate-300 px-2 py-1.5 text-sm"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs text-slate-600">Autonomía (km)</label>
+                <input
+                  type="number"
+                  min={0}
+                  value={maxRangeKm}
+                  onChange={(e) => setMaxRangeKm(e.target.value)}
+                  placeholder="10"
+                  className="w-full rounded border border-slate-300 px-2 py-1.5 text-sm"
+                />
+              </div>
+            </div>
+            <label className="mb-1 block text-xs text-slate-600">Base de origen</label>
+            <select
+              value={homeBaseId}
+              onChange={(e) => setHomeBaseId(e.target.value)}
+              className="mb-3 w-full rounded border border-slate-300 px-2 py-1.5 text-sm"
+            >
+              <option value="">Elegí una base...</option>
+              {bases.map((b) => (
+                <option key={b.id} value={b.id}>
+                  {b.name}
+                </option>
+              ))}
+            </select>
+            {bases.length === 0 && (
+              <p className="mb-3 text-xs text-amber-600">
+                Todavía no hay bases creadas — andá a "Bases" y creá una primero.
               </p>
-              {formError && <div className="mb-3 text-sm text-red-600">{formError}</div>}
-              <div className="mt-auto flex gap-2">
-                <button
-                  onClick={handleCreateDrone}
-                  disabled={submitting}
-                  className="rounded bg-slate-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-50"
-                >
-                  {submitting ? 'Guardando...' : 'Guardar dron'}
-                </button>
-                <button
-                  onClick={resetForm}
-                  className="rounded border border-slate-300 px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50"
-                >
-                  Cancelar
-                </button>
-              </div>
+            )}
+            {formError && <div className="mb-3 text-sm text-red-600">{formError}</div>}
+            <div className="flex gap-2">
+              <button
+                onClick={handleCreateDrone}
+                disabled={submitting}
+                className="rounded bg-slate-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-50"
+              >
+                {submitting ? 'Guardando...' : 'Guardar dron'}
+              </button>
+              <button
+                onClick={resetForm}
+                className="rounded border border-slate-300 px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50"
+              >
+                Cancelar
+              </button>
             </div>
           </div>
         )}
