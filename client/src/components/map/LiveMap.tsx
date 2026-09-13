@@ -24,12 +24,14 @@ function makeBaseIcon() {
 const DEFAULT_CENTER: [number, number] = [-33.4489, -70.6693];
 const DEFAULT_ZOOM = 15;
 const MAX_ZOOM = 19; // matches the tile layer's own maxZoom — no point asking for more
-const ACTIVE_FLIGHT_STATUSES: DroneStatus[] = ['in_flight', 'returning'];
+const ACTIVE_FLIGHT_STATUSES: DroneStatus[] = ['in_flight', 'unloading', 'returning'];
 
 function statusColor(status: DroneStatus | string) {
   switch (status) {
     case 'in_flight':
       return '#2563eb';
+    case 'unloading':
+      return '#0891b2';
     case 'returning':
       return '#7c3aed';
     case 'idle':
@@ -120,7 +122,10 @@ export function LiveMap({ drones, bases, missions, deliveries, telemetryByDrone 
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
 
-    const map = L.map(containerRef.current).setView(DEFAULT_CENTER, DEFAULT_ZOOM);
+    // zoomControl:false + re-added at bottomleft — the summary bar and
+    // telemetry HUD already own the top corners.
+    const map = L.map(containerRef.current, { zoomControl: false }).setView(DEFAULT_CENTER, DEFAULT_ZOOM);
+    L.control.zoom({ position: 'bottomleft' }).addTo(map);
     L.tileLayer('https://api.maptiler.com/maps/streets-v4/{z}/{x}/{y}.png?key=zy6sHDBhSRsVvSPe3MCL', {
       attribution: '&copy; <a href="https://www.maptiler.com/copyright/" target="_blank">MapTiler</a> &copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a> contributors',
       maxZoom: 19,

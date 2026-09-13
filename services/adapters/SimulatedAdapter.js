@@ -10,6 +10,7 @@ const { publishTelemetry, publishDelivery } = require('../telemetryBus');
 const TICK_MS = Number(process.env.SIM_TICK_MS) || 1000;
 const DEFAULT_SPEED_MPS = Number(process.env.SIM_DEFAULT_SPEED_MPS) || 12;
 const BATTERY_DRAIN_PCT_PER_MIN = Number(process.env.SIM_BATTERY_DRAIN_PCT_PER_MIN) || 1.5;
+const DISCHARGE_MS = (Number(process.env.SIM_DISCHARGE_SECONDS) || 5) * 1000;
 const ARRIVAL_EPSILON_M = 2;
 
 // Fake flight backend: interpolates a drone's position toward its mission's
@@ -24,7 +25,8 @@ const ARRIVAL_EPSILON_M = 2;
 class SimulatedAdapter extends DroneAdapter {
   constructor(deps) {
     super(deps);
-    this.flights = new Map(); // droneId -> { missionId, waypoints, targetIndex, speedMps, homeOnly, phase, returnPoint }
+    // droneId -> { missionId, waypoints, targetIndex, speedMps, homeOnly, phase, returnPoint, dischargeUntil }
+    this.flights = new Map();
     this.timer = null;
   }
 
@@ -139,6 +141,74 @@ class SimulatedAdapter extends DroneAdapter {
       return;
     }
 
+    // Holding at a delivery point to unload — position/altitude/heading
+    // don't change, just wait out the timer (or drain out early into
+    // 'error' the same as flying, in case a discharge is left running long
+    // enough for that to matter).
+    if (flight.dischargeUntil) {
+      const drainedBattery = Math.max(
+        0,
+        Number(drone.battery_pct) - (BATTERY_DRAIN_PCT_PER_MIN * TICK_MS) / 60000
+      );
+      if (drainedBattery <= 0) {
+        this.flights.delete(droneId);
+        await droneService.updatePosition(droneId, {
+          lat: drone.lat,
+          lon: drone.lon,
+          altitudeM: drone.altitude_m || 0,
+          headingDeg: drone.heading_deg || 0,
+          speedMps: 0,
+          batteryPct: 0,
+        });
+        await droneService.updateStatus(droneId, 'error');
+        if (flight.missionId) {
+          await missionService.updateStatus(flight.missionId, 'failed', { notes: 'battery_depleted' });
+        }
+        return;
+      }
+
+      await droneService.updatePosition(droneId, {
+        lat: drone.lat,
+        lon: drone.lon,
+        altitudeM: drone.altitude_m || 0,
+        headingDeg: drone.heading_deg || 0,
+        speedMps: 0,
+        batteryPct: drainedBattery,
+      });
+
+      if (Date.now() < flight.dischargeUntil) {
+        const payload = {
+          droneId,
+          missionId: flight.missionId,
+          lat: drone.lat,
+          lon: drone.lon,
+          altitudeM: drone.altitude_m || 0,
+          headingDeg: Number(drone.heading_deg) || 0,
+          speedMps: 0,
+          batteryPct: drainedBattery,
+          status: 'unloading',
+          phase: flight.phase,
+          etaSeconds: Math.round((flight.dischargeUntil - Date.now()) / 1000),
+          arrived: false,
+        };
+        await telemetryService.insert(payload);
+        publishTelemetry(payload);
+        return;
+      }
+
+      // Discharge finished — advance to whichever leg is next and fall
+      // through to the normal movement logic below on the very same tick.
+      flight.dischargeUntil = null;
+      const isLastDestination = flight.targetIndex + 1 >= flight.waypoints.length;
+      if (!isLastDestination) {
+        flight.targetIndex += 1;
+        await droneService.updateStatus(droneId, 'in_flight');
+      } else {
+        flight.phase = 'returning';
+        await droneService.updateStatus(droneId, 'returning');
+      }
+    }
+
     const current = { lat: drone.lat, lon: drone.lon };
     const target =
       flight.phase === 'returning'
@@ -180,7 +250,9 @@ class SimulatedAdapter extends DroneAdapter {
       await droneService.updateStatus(droneId, 'idle');
     } else if (arrived && flight.phase === 'delivering') {
       // Reaching a real destination opens that bay's discharge gate and
-      // logs the delivery, whether it's a stop along the way or the last one.
+      // logs the delivery, then holds here for SIM_DISCHARGE_SECONDS before
+      // moving on to the next stop or the return leg (handled at the top of
+      // this function on the tick the hold expires).
       const delivery = await deliveryService.record({
         missionId: flight.missionId,
         droneId,
@@ -192,16 +264,10 @@ class SimulatedAdapter extends DroneAdapter {
       publishDelivery(delivery);
       await missionService.updateCurrentWaypoint(flight.missionId, target.seq);
 
-      const isLastDestination = flight.targetIndex + 1 >= flight.waypoints.length;
-      if (!isLastDestination) {
-        flight.targetIndex += 1;
-      } else {
-        // All destinations delivered — now fly the return leg instead of
-        // completing the mission immediately.
-        flight.phase = 'returning';
-        status = 'returning';
-        await droneService.updateStatus(droneId, 'returning');
-      }
+      flight.dischargeUntil = Date.now() + DISCHARGE_MS;
+      status = 'unloading';
+      speedMps = 0;
+      await droneService.updateStatus(droneId, 'unloading');
     } else if (arrived && flight.phase === 'returning') {
       status = 'idle';
       speedMps = 0;

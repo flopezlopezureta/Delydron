@@ -32,6 +32,7 @@ export function TelemetryHud({ drones, telemetryByDrone, missions }: TelemetryHu
           const battery = t?.batteryPct ?? Number(drone.battery_pct);
           const status = t?.status ?? drone.status;
           const heading = t?.headingDeg ?? Number(drone.heading_deg) ?? 0;
+          const altitude = t?.altitudeM ?? Number(drone.altitude_m) ?? 0;
 
           const mission = t?.missionId ? missionById[t.missionId] : undefined;
           const elapsedSeconds = mission?.started_at
@@ -49,12 +50,13 @@ export function TelemetryHud({ drones, telemetryByDrone, missions }: TelemetryHu
                 <span>lon: {lon?.toFixed(5)}</span>
                 <span>batería: {battery?.toFixed(1)}%</span>
                 <span>rumbo: {heading.toFixed(0)}°</span>
+                <span>altitud: {altitude.toFixed(0)}m</span>
               </div>
               {elapsedSeconds !== null && (
                 <div className="mt-1 grid grid-cols-2 gap-x-2 border-t border-slate-100 pt-1 text-slate-600">
                   <span>vuelo: {formatDuration(elapsedSeconds)}</span>
                   <span>
-                    {t?.phase === 'returning' ? 'regreso' : 'a destino'}:{' '}
+                    {t?.status === 'unloading' ? 'descarga' : t?.phase === 'returning' ? 'regreso' : 'a destino'}:{' '}
                     {t?.etaSeconds != null ? formatDuration(t.etaSeconds) : '—'}
                   </span>
                 </div>

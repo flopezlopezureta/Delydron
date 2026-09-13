@@ -12,6 +12,7 @@ export type DroneStatus =
   | 'idle'
   | 'armed'
   | 'in_flight'
+  | 'unloading'
   | 'returning'
   | 'charging'
   | 'maintenance'

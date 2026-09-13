@@ -33,7 +33,7 @@ CREATE TABLE IF NOT EXISTS drones (
   adapter_type VARCHAR(20) NOT NULL DEFAULT 'simulated'
     CHECK (adapter_type IN ('simulated','mavlink','dji')),
   status VARCHAR(20) NOT NULL DEFAULT 'offline'
-    CHECK (status IN ('offline','idle','armed','in_flight','returning','charging','maintenance','error')),
+    CHECK (status IN ('offline','idle','armed','in_flight','unloading','returning','charging','maintenance','error')),
   battery_pct NUMERIC(5,2) NOT NULL DEFAULT 100.00 CHECK (battery_pct BETWEEN 0 AND 100),
   lat DOUBLE PRECISION,
   lon DOUBLE PRECISION,
@@ -48,6 +48,12 @@ CREATE TABLE IF NOT EXISTS drones (
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+-- Explicit ALTER so 'unloading' reaches databases that already ran an
+-- earlier version of this script (the inline CHECK above is a no-op
+-- against an existing table).
+ALTER TABLE drones DROP CONSTRAINT IF EXISTS drones_status_check;
+ALTER TABLE drones ADD CONSTRAINT drones_status_check
+  CHECK (status IN ('offline','idle','armed','in_flight','unloading','returning','charging','maintenance','error'));
 CREATE INDEX IF NOT EXISTS idx_drones_status ON drones(status);
 
 -- MISSIONS ----------------------------------------------------------------
