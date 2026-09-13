@@ -1,6 +1,13 @@
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 CREATE SEQUENCE IF NOT EXISTS mission_code_seq START 1;
 
+-- SETTINGS (flight-tuning knobs editable from the app, no redeploy needed) -
+CREATE TABLE IF NOT EXISTS settings (
+  key VARCHAR(50) PRIMARY KEY,
+  value TEXT NOT NULL,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
 -- USERS ----------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS users (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

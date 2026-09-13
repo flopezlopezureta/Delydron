@@ -14,6 +14,19 @@ router.get(
   })
 );
 
+router.post(
+  '/',
+  auth,
+  asyncHandler(async (req, res) => {
+    const { name, homeLat, homeLon } = req.body || {};
+    if (!name || homeLat == null || homeLon == null) {
+      return res.status(400).json({ error: 'name_and_home_position_required' });
+    }
+    const drone = await droneService.create(req.body);
+    res.status(201).json(drone);
+  })
+);
+
 router.get(
   '/:id',
   auth,

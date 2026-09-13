@@ -24,6 +24,9 @@ export function NavBar() {
           <NavLink to="/deliveries" className={linkClass}>
             Historial
           </NavLink>
+          <NavLink to="/config" className={linkClass}>
+            Configuración
+          </NavLink>
         </nav>
       </div>
       {user && (

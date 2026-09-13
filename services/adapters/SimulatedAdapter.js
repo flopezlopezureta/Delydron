@@ -5,12 +5,17 @@ const missionService = require('../missionService');
 const telemetryService = require('../telemetryService');
 const deliveryService = require('../deliveryService');
 const baseService = require('../baseService');
+const settingsService = require('../settingsService');
 const { publishTelemetry, publishDelivery } = require('../telemetryBus');
 
+// Engine-internal tuning, not exposed in the Configuración page — changing
+// these needs a redeploy either way (TICK_MS is read once by setInterval,
+// DEFAULT_SPEED_MPS is a defensive fallback for a drone missing its own
+// max_speed_mps). battery_drain_pct_per_min and discharge_seconds ARE
+// operator-facing, so those live in settingsService instead, re-read fresh
+// on every use — see below.
 const TICK_MS = Number(process.env.SIM_TICK_MS) || 1000;
 const DEFAULT_SPEED_MPS = Number(process.env.SIM_DEFAULT_SPEED_MPS) || 12;
-const BATTERY_DRAIN_PCT_PER_MIN = Number(process.env.SIM_BATTERY_DRAIN_PCT_PER_MIN) || 1.5;
-const DISCHARGE_MS = (Number(process.env.SIM_DISCHARGE_SECONDS) || 5) * 1000;
 const ARRIVAL_EPSILON_M = 2;
 
 // Fake flight backend: interpolates a drone's position toward its mission's
@@ -31,6 +36,7 @@ class SimulatedAdapter extends DroneAdapter {
   }
 
   async init() {
+    await settingsService.ensureCache();
     this.timer = setInterval(() => {
       this.tick().catch((err) => console.error('[SimulatedAdapter] tick error:', err));
     }, TICK_MS);
@@ -148,7 +154,7 @@ class SimulatedAdapter extends DroneAdapter {
     if (flight.dischargeUntil) {
       const drainedBattery = Math.max(
         0,
-        Number(drone.battery_pct) - (BATTERY_DRAIN_PCT_PER_MIN * TICK_MS) / 60000
+        Number(drone.battery_pct) - (settingsService.getSync('battery_drain_pct_per_min') * TICK_MS) / 60000
       );
       if (drainedBattery <= 0) {
         this.flights.delete(droneId);
@@ -230,7 +236,7 @@ class SimulatedAdapter extends DroneAdapter {
 
     const drainedBattery = Math.max(
       0,
-      Number(drone.battery_pct) - (BATTERY_DRAIN_PCT_PER_MIN * TICK_MS) / 60000
+      Number(drone.battery_pct) - (settingsService.getSync('battery_drain_pct_per_min') * TICK_MS) / 60000
     );
 
     let status = drone.status;
@@ -264,7 +270,7 @@ class SimulatedAdapter extends DroneAdapter {
       publishDelivery(delivery);
       await missionService.updateCurrentWaypoint(flight.missionId, target.seq);
 
-      flight.dischargeUntil = Date.now() + DISCHARGE_MS;
+      flight.dischargeUntil = Date.now() + settingsService.getSync('discharge_seconds') * 1000;
       status = 'unloading';
       speedMps = 0;
       await droneService.updateStatus(droneId, 'unloading');

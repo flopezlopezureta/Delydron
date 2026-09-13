@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { listDrones } from '../api/drones';
 import type { Drone } from '../types';
 
@@ -7,12 +7,15 @@ export function useDrones() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    listDrones()
+  const refetch = useCallback(() => {
+    return listDrones()
       .then(setDrones)
-      .catch((err) => setError(err.message))
-      .finally(() => setLoading(false));
+      .catch((err) => setError(err.message));
   }, []);
 
-  return { drones, loading, error };
+  useEffect(() => {
+    refetch().finally(() => setLoading(false));
+  }, [refetch]);
+
+  return { drones, loading, error, refetch };
 }

@@ -4,12 +4,13 @@ import { useDrones } from '../hooks/useDrones';
 import { useBases } from '../hooks/useBases';
 import { createMission, getMission, updateMission } from '../api/missions';
 import { geocodeAddress } from '../api/geocoding';
+import { getSettings } from '../api/settings';
 import { WaypointPlannerMap } from '../components/map/WaypointPlannerMap';
 import { WaypointList } from '../components/missions/WaypointList';
 import { MAX_DESTINATIONS_PER_MISSION, type Waypoint } from '../types';
 
 const DEFAULT_CENTER: [number, number] = [-33.4489, -70.6693];
-const DEFAULT_ALT_M = 60;
+const FALLBACK_ALT_M = 60; // used only until /api/settings responds
 
 export function MissionPlannerPage() {
   const navigate = useNavigate();
@@ -32,6 +33,7 @@ export function MissionPlannerPage() {
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [searchingAddress, setSearchingAddress] = useState(false);
+  const [defaultAltM, setDefaultAltM] = useState(FALLBACK_ALT_M);
   // Blocks the first render (map included) until the source mission (to
   // edit or repeat) has loaded, so the map mounts already centered on its
   // route — it only reads `center` once, on mount, not on every prop change.
@@ -58,6 +60,12 @@ export function MissionPlannerPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sourceId]);
 
+  useEffect(() => {
+    getSettings()
+      .then((s) => setDefaultAltM(s.default_altitude_m))
+      .catch(() => {}); // keep FALLBACK_ALT_M
+  }, []);
+
   const mapCenter = useMemo<[number, number]>(() => {
     if (waypoints.length > 0) return [waypoints[0].lat, waypoints[0].lon];
     const selected = drones.find((d) => d.id === droneId) ?? drones[0];
@@ -73,7 +81,7 @@ export function MissionPlannerPage() {
         setError(`Un dron tiene ${MAX_DESTINATIONS_PER_MISSION} compuertas de descarga — no se pueden agregar más de ${MAX_DESTINATIONS_PER_MISSION} destinos.`);
         return prev;
       }
-      return [...prev, { seq: prev.length + 1, lat, lon, alt_m: DEFAULT_ALT_M }];
+      return [...prev, { seq: prev.length + 1, lat, lon, alt_m: defaultAltM }];
     });
   }
 
