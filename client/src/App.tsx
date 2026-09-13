@@ -9,6 +9,7 @@ import { MissionPlannerPage } from './pages/MissionPlannerPage';
 import { BasesPage } from './pages/BasesPage';
 import { DeliveriesPage } from './pages/DeliveriesPage';
 import { ConfigPage } from './pages/ConfigPage';
+import { UsersPage } from './pages/UsersPage';
 
 function AppShell() {
   return (
@@ -41,6 +42,7 @@ export default function App() {
             <Route path="bases" element={<BasesPage />} />
             <Route path="deliveries" element={<DeliveriesPage />} />
             <Route path="config" element={<ConfigPage />} />
+            <Route path="users" element={<UsersPage />} />
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

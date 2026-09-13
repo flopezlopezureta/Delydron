@@ -7,6 +7,17 @@ export interface User {
   role: UserRole;
 }
 
+// Raw shape from /api/users (management list) — snake_case, unlike the
+// camelCase `User` above which mirrors /api/auth/me's response instead.
+export interface ManagedUser {
+  id: string;
+  email: string;
+  full_name: string;
+  role: UserRole;
+  is_active: boolean;
+  created_at: string;
+}
+
 export type DroneStatus =
   | 'offline'
   | 'idle'

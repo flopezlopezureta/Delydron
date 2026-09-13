@@ -16,6 +16,20 @@ async function getInProgress() {
   return rows;
 }
 
+// Blocks deleting a base a mission still depends on. Terminal missions are
+// excluded — those are just history at that point, and letting the FK's
+// ON DELETE SET NULL clear the reference there is fine.
+async function existsForBase(baseId) {
+  const { rows } = await db.query(
+    `SELECT 1 FROM missions
+     WHERE (pickup_base_id = $1 OR return_base_id = $1)
+       AND status NOT IN ('completed', 'aborted', 'failed')
+     LIMIT 1`,
+    [baseId]
+  );
+  return rows.length > 0;
+}
+
 async function list({ status, droneId } = {}) {
   const clauses = [];
   const values = [];
@@ -169,6 +183,7 @@ async function updateStatus(id, status, { notes } = {}) {
 module.exports = {
   getById,
   getInProgress,
+  existsForBase,
   updateCurrentWaypoint,
   updateStatus,
   list,

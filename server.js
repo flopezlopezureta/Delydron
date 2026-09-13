@@ -44,6 +44,7 @@ app.use(
 app.get('/api/health', (req, res) => res.json({ status: 'ok' }));
 
 app.use('/api/auth', require('./routes/auth'));
+app.use('/api/users', require('./routes/users'));
 app.use('/api/drones', require('./routes/drones'));
 app.use('/api/bases', require('./routes/bases'));
 app.use('/api/settings', require('./routes/settings'));

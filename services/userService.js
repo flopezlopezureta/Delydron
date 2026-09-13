@@ -32,4 +32,43 @@ async function verifyPassword(user, password) {
   return bcrypt.compare(password, user.password_hash);
 }
 
-module.exports = { findByEmail, findById, createUser, verifyPassword };
+async function list() {
+  const { rows } = await db.query(
+    'SELECT id, email, full_name, role, is_active, created_at FROM users ORDER BY full_name'
+  );
+  return rows;
+}
+
+async function update(id, fields) {
+  const allowed = {};
+  if (fields.fullName !== undefined) allowed.full_name = fields.fullName;
+  if (fields.role !== undefined) allowed.role = fields.role;
+  if (fields.isActive !== undefined) allowed.is_active = fields.isActive;
+  if (fields.password) allowed.password_hash = await bcrypt.hash(fields.password, 10);
+
+  const sets = [];
+  const values = [];
+  let i = 1;
+  for (const [column, value] of Object.entries(allowed)) {
+    sets.push(`${column} = $${i++}`);
+    values.push(value);
+  }
+  if (!sets.length) return findById(id);
+
+  values.push(id);
+  const { rows } = await db.query(
+    `UPDATE users SET ${sets.join(', ')}, updated_at = now() WHERE id = $${i}
+     RETURNING id, email, full_name, role, is_active`,
+    values
+  );
+  return rows[0] || null;
+}
+
+// Soft delete — flips is_active instead of a hard DELETE, so the account
+// can't log in anymore (findByEmail already filters on is_active) but stays
+// intact as created_by on any mission it dispatched. Reversible via update().
+async function remove(id) {
+  await db.query('UPDATE users SET is_active = false, updated_at = now() WHERE id = $1', [id]);
+}
+
+module.exports = { findByEmail, findById, createUser, verifyPassword, list, update, remove };

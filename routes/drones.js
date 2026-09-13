@@ -1,7 +1,7 @@
 const express = require('express');
 const droneService = require('../services/droneService');
 const { getAdapter } = require('../services/adapterRegistry');
-const { auth } = require('../middleware/auth');
+const { auth, requireRole } = require('../middleware/auth');
 const { asyncHandler } = require('../utils/asyncHandler');
 
 const router = express.Router();
@@ -17,6 +17,7 @@ router.get(
 router.post(
   '/',
   auth,
+  requireRole('admin'),
   asyncHandler(async (req, res) => {
     const { name, homeLat, homeLon } = req.body || {};
     if (!name || homeLat == null || homeLon == null) {
@@ -40,10 +41,24 @@ router.get(
 router.patch(
   '/:id',
   auth,
+  requireRole('admin'),
   asyncHandler(async (req, res) => {
     const drone = await droneService.update(req.params.id, req.body || {});
     if (!drone) return res.status(404).json({ error: 'not_found' });
     res.json(drone);
+  })
+);
+
+router.delete(
+  '/:id',
+  auth,
+  requireRole('admin'),
+  asyncHandler(async (req, res) => {
+    const drone = await droneService.getById(req.params.id);
+    if (!drone) return res.status(404).json({ error: 'not_found' });
+    const removed = await droneService.remove(req.params.id);
+    if (!removed) return res.status(409).json({ error: 'drone_not_idle' });
+    res.status(204).end();
   })
 );
 

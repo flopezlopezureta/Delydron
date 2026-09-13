@@ -1,6 +1,7 @@
 const express = require('express');
 const baseService = require('../services/baseService');
-const { auth } = require('../middleware/auth');
+const missionService = require('../services/missionService');
+const { auth, requireRole } = require('../middleware/auth');
 const { asyncHandler } = require('../utils/asyncHandler');
 
 const router = express.Router();
@@ -26,6 +27,7 @@ router.get(
 router.post(
   '/',
   auth,
+  requireRole('admin'),
   asyncHandler(async (req, res) => {
     const { name, address, lat, lon } = req.body || {};
     if (!name || typeof lat !== 'number' || typeof lon !== 'number') {
@@ -39,6 +41,7 @@ router.post(
 router.patch(
   '/:id',
   auth,
+  requireRole('admin'),
   asyncHandler(async (req, res) => {
     const base = await baseService.update(req.params.id, req.body || {});
     if (!base) return res.status(404).json({ error: 'not_found' });
@@ -49,7 +52,11 @@ router.patch(
 router.delete(
   '/:id',
   auth,
+  requireRole('admin'),
   asyncHandler(async (req, res) => {
+    if (await missionService.existsForBase(req.params.id)) {
+      return res.status(409).json({ error: 'base_in_use_by_mission' });
+    }
     await baseService.remove(req.params.id);
     res.status(204).end();
   })

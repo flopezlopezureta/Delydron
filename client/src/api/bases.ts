@@ -19,6 +19,13 @@ export function createBase(input: BaseInput): Promise<Base> {
   });
 }
 
+export function updateBase(id: string, input: Partial<BaseInput>): Promise<Base> {
+  return apiFetch<Base>(`/api/bases/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(input),
+  });
+}
+
 export function deleteBase(id: string): Promise<void> {
   return apiFetch<void>(`/api/bases/${id}`, { method: 'DELETE' });
 }

@@ -27,6 +27,11 @@ export function NavBar() {
           <NavLink to="/config" className={linkClass}>
             Configuración
           </NavLink>
+          {user?.role === 'admin' && (
+            <NavLink to="/users" className={linkClass}>
+              Usuarios
+            </NavLink>
+          )}
         </nav>
       </div>
       {user && (

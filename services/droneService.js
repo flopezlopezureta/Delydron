@@ -58,8 +58,12 @@ async function updateStatus(id, status) {
   return rows[0] || null;
 }
 
+// Only removes an idle drone — returns false (no-op) instead of silently
+// deleting one that's mid-mission, so the caller can tell the difference
+// between "gone" and "still flying, didn't touch it".
 async function remove(id) {
-  await db.query(`DELETE FROM drones WHERE id = $1 AND status = 'idle'`, [id]);
+  const result = await db.query(`DELETE FROM drones WHERE id = $1 AND status = 'idle'`, [id]);
+  return result.rowCount > 0;
 }
 
 module.exports = { list, getById, create, update, updatePosition, updateStatus, remove };
