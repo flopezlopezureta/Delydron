@@ -117,7 +117,11 @@ export function BasesPage() {
       {isAdmin && showForm && (
         <div className="mb-4 flex gap-4 rounded-lg border border-slate-200 bg-white p-4">
           <div className="h-80 w-96 shrink-0 overflow-hidden rounded border border-slate-200">
-            <BasePickerMap center={point ?? DEFAULT_CENTER} point={point} onPick={(lat, lon) => setPoint({ lat, lon })} />
+            <BasePickerMap
+              center={point ? [point.lat, point.lon] : DEFAULT_CENTER}
+              point={point}
+              onPick={(lat, lon) => setPoint({ lat, lon })}
+            />
           </div>
           <div className="flex flex-1 flex-col">
             <h2 className="mb-2 text-sm font-semibold text-slate-700">
