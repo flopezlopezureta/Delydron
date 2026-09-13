@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useBases } from '../hooks/useBases';
 import { createBase, deleteBase } from '../api/bases';
+import { geocodeAddress } from '../api/geocoding';
 import { BasePickerMap } from '../components/bases/BasePickerMap';
 
 const DEFAULT_CENTER: [number, number] = [-33.4489, -70.6693];
@@ -13,7 +14,26 @@ export function BasesPage() {
   const [point, setPoint] = useState<{ lat: number; lon: number } | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [searchingAddress, setSearchingAddress] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
+
+  async function handleFindAddress() {
+    if (!address.trim()) return;
+    setFormError(null);
+    setSearchingAddress(true);
+    try {
+      const result = await geocodeAddress(address);
+      if (!result) {
+        setFormError('No se encontró esa dirección — probá con más detalle o marcá el punto directo en el mapa.');
+        return;
+      }
+      setPoint({ lat: result.lat, lon: result.lon });
+    } catch (err) {
+      setFormError(err instanceof Error ? err.message : 'No se pudo buscar la dirección.');
+    } finally {
+      setSearchingAddress(false);
+    }
+  }
 
   function resetForm() {
     setName('');
@@ -77,13 +97,31 @@ export function BasesPage() {
               className="mb-3 w-full rounded border border-slate-300 px-2 py-1.5 text-sm"
             />
             <label className="mb-1 block text-xs text-slate-600">Dirección</label>
-            <input
-              value={address}
-              onChange={(e) => setAddress(e.target.value)}
-              className="mb-3 w-full rounded border border-slate-300 px-2 py-1.5 text-sm"
-            />
+            <div className="mb-3 flex gap-1">
+              <input
+                value={address}
+                onChange={(e) => setAddress(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleFindAddress();
+                  }
+                }}
+                className="w-full rounded border border-slate-300 px-2 py-1.5 text-sm"
+              />
+              <button
+                type="button"
+                onClick={handleFindAddress}
+                disabled={searchingAddress || !address.trim()}
+                className="shrink-0 rounded border border-slate-300 px-2 py-1.5 text-xs text-slate-600 hover:bg-slate-50 disabled:opacity-50"
+              >
+                {searchingAddress ? '...' : 'Buscar'}
+              </button>
+            </div>
             <p className="mb-3 text-xs text-slate-500">
-              {point ? `Ubicación: ${point.lat.toFixed(5)}, ${point.lon.toFixed(5)}` : 'Haz clic en el mapa para ubicarla.'}
+              {point
+                ? `Ubicación: ${point.lat.toFixed(5)}, ${point.lon.toFixed(5)}`
+                : 'Escribí la dirección y tocá "Buscar", o hacé clic directo en el mapa.'}
             </p>
             {formError && <div className="mb-3 text-sm text-red-600">{formError}</div>}
             <div className="mt-auto flex gap-2">
