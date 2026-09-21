@@ -1,10 +1,19 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { listUsers, createUser, updateUser, deactivateUser } from '../api/users';
-import type { ManagedUser, UserRole } from '../types';
+import { ROLE_LABELS, type ManagedUser, type UserRole } from '../types';
+
+// super_admin can only be assigned by another super_admin — everyone else
+// (including plain admins) never even sees it as an option, matching the
+// backend's 403 on that combination and the fact that super_admin rows are
+// already excluded from what a non-super_admin's user list returns.
+const ASSIGNABLE_ROLES: UserRole[] = ['admin', 'operator', 'technician', 'auxiliary'];
+const ALL_ROLES: UserRole[] = ['super_admin', ...ASSIGNABLE_ROLES];
 
 export function UsersPage() {
   const { user: currentUser } = useAuth();
+  const roleOptions: UserRole[] = currentUser?.role === 'super_admin' ? ALL_ROLES : ASSIGNABLE_ROLES;
+
   const [users, setUsers] = useState<ManagedUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -111,7 +120,7 @@ export function UsersPage() {
     }
   }
 
-  if (currentUser && currentUser.role !== 'admin') {
+  if (currentUser && currentUser.role !== 'admin' && currentUser.role !== 'super_admin') {
     return (
       <div className="p-4 text-sm text-slate-500">
         Esta sección es solo para administradores.
@@ -167,8 +176,11 @@ export function UsersPage() {
             disabled={editingId === currentUser?.id}
             className="mb-3 w-full rounded border border-slate-300 px-2 py-1.5 text-sm disabled:opacity-50"
           >
-            <option value="operator">Operador</option>
-            <option value="admin">Admin</option>
+            {roleOptions.map((r) => (
+              <option key={r} value={r}>
+                {ROLE_LABELS[r]}
+              </option>
+            ))}
           </select>
           {formError && <div className="mb-3 text-sm text-red-600">{formError}</div>}
           <div className="flex gap-2">
@@ -207,40 +219,55 @@ export function UsersPage() {
               {users.map((u) => {
                 const isSelf = u.id === currentUser?.id;
                 const busy = busyId === u.id;
+                // A super_admin row only ever appears here for a super_admin
+                // viewer (the API already hides it from anyone else), but an
+                // admin still can't demote/touch one if it somehow renders.
+                const canManage = u.role !== 'super_admin' || currentUser?.role === 'super_admin';
                 return (
                   <tr key={u.id} className={u.is_active ? '' : 'opacity-50'}>
                     <td className="px-4 py-2 font-medium text-slate-800">{u.full_name}</td>
                     <td className="px-4 py-2 text-slate-600">{u.email}</td>
                     <td className="px-4 py-2">
-                      <select
-                        disabled={busy || isSelf}
-                        value={u.role}
-                        onChange={(e) => handleRoleChange(u, e.target.value as UserRole)}
-                        className="rounded border border-slate-300 px-1.5 py-1 text-xs disabled:opacity-50"
-                      >
-                        <option value="operator">Operador</option>
-                        <option value="admin">Admin</option>
-                      </select>
+                      {canManage ? (
+                        <select
+                          disabled={busy || isSelf}
+                          value={u.role}
+                          onChange={(e) => handleRoleChange(u, e.target.value as UserRole)}
+                          className="rounded border border-slate-300 px-1.5 py-1 text-xs disabled:opacity-50"
+                        >
+                          {(u.role === 'super_admin' ? ALL_ROLES : roleOptions).map(
+                            (r) => (
+                              <option key={r} value={r}>
+                                {ROLE_LABELS[r]}
+                              </option>
+                            )
+                          )}
+                        </select>
+                      ) : (
+                        ROLE_LABELS[u.role]
+                      )}
                     </td>
                     <td className="px-4 py-2 text-slate-600">{u.is_active ? 'Activo' : 'Inactivo'}</td>
                     <td className="px-4 py-2">
-                      <div className="flex gap-2">
-                        <button
-                          disabled={busy}
-                          onClick={() => startEdit(u)}
-                          className="rounded border border-slate-300 px-2 py-1 text-xs text-slate-600 hover:bg-slate-50 disabled:opacity-50"
-                        >
-                          Editar
-                        </button>
-                        <button
-                          disabled={busy || isSelf}
-                          onClick={() => handleToggleActive(u)}
-                          title={isSelf ? 'No podés desactivarte a vos mismo.' : undefined}
-                          className="rounded border border-slate-300 px-2 py-1 text-xs text-slate-600 hover:bg-slate-50 disabled:opacity-50"
-                        >
-                          {u.is_active ? 'Desactivar' : 'Reactivar'}
-                        </button>
-                      </div>
+                      {canManage && (
+                        <div className="flex gap-2">
+                          <button
+                            disabled={busy}
+                            onClick={() => startEdit(u)}
+                            className="rounded border border-slate-300 px-2 py-1 text-xs text-slate-600 hover:bg-slate-50 disabled:opacity-50"
+                          >
+                            Editar
+                          </button>
+                          <button
+                            disabled={busy || isSelf}
+                            onClick={() => handleToggleActive(u)}
+                            title={isSelf ? 'No podés desactivarte a vos mismo.' : undefined}
+                            className="rounded border border-slate-300 px-2 py-1 text-xs text-slate-600 hover:bg-slate-50 disabled:opacity-50"
+                          >
+                            {u.is_active ? 'Desactivar' : 'Reactivar'}
+                          </button>
+                        </div>
+                      )}
                     </td>
                   </tr>
                 );

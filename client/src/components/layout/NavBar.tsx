@@ -1,5 +1,6 @@
 import { NavLink } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
+import { ROLE_LABELS } from '../../types';
 
 const linkClass = ({ isActive }: { isActive: boolean }) =>
   `rounded px-3 py-1 text-sm ${isActive ? 'bg-slate-700 text-white' : 'text-slate-300 hover:bg-slate-800'}`;
@@ -27,7 +28,7 @@ export function NavBar() {
           <NavLink to="/config" className={linkClass}>
             Configuración
           </NavLink>
-          {user?.role === 'admin' && (
+          {(user?.role === 'admin' || user?.role === 'super_admin') && (
             <NavLink to="/users" className={linkClass}>
               Usuarios
             </NavLink>
@@ -37,7 +38,7 @@ export function NavBar() {
       {user && (
         <div className="flex items-center gap-3 text-sm">
           <span className="text-slate-300">
-            {user.fullName} · {user.role}
+            {user.fullName} · {ROLE_LABELS[user.role]}
           </span>
           <button
             onClick={logout}

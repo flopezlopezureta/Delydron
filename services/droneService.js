@@ -21,7 +21,7 @@ async function create({ name, serialNumber, model, homeLat, homeLon, maxSpeedMps
 }
 
 async function update(id, fields) {
-  const allowed = ['name', 'serial_number', 'model', 'max_speed_mps', 'max_range_km'];
+  const allowed = ['name', 'serial_number', 'model', 'max_speed_mps', 'max_range_km', 'home_lat', 'home_lon'];
   const sets = [];
   const values = [];
   let i = 1;

@@ -17,7 +17,7 @@ router.get(
 router.post(
   '/',
   auth,
-  requireRole('admin'),
+  requireRole('admin', 'super_admin'),
   asyncHandler(async (req, res) => {
     const { name, homeLat, homeLon } = req.body || {};
     if (!name || homeLat == null || homeLon == null) {
@@ -41,7 +41,7 @@ router.get(
 router.patch(
   '/:id',
   auth,
-  requireRole('admin'),
+  requireRole('admin', 'super_admin', 'technician'),
   asyncHandler(async (req, res) => {
     const drone = await droneService.update(req.params.id, req.body || {});
     if (!drone) return res.status(404).json({ error: 'not_found' });
@@ -52,7 +52,7 @@ router.patch(
 router.delete(
   '/:id',
   auth,
-  requireRole('admin'),
+  requireRole('admin', 'super_admin'),
   asyncHandler(async (req, res) => {
     const drone = await droneService.getById(req.params.id);
     if (!drone) return res.status(404).json({ error: 'not_found' });
@@ -65,6 +65,7 @@ router.delete(
 router.post(
   '/:id/return-to-home',
   auth,
+  requireRole('admin', 'super_admin', 'operator'),
   asyncHandler(async (req, res) => {
     const drone = await droneService.getById(req.params.id);
     if (!drone) return res.status(404).json({ error: 'not_found' });
@@ -76,6 +77,7 @@ router.post(
 router.post(
   '/:id/emergency-stop',
   auth,
+  requireRole('admin', 'super_admin', 'operator'),
   asyncHandler(async (req, res) => {
     const drone = await droneService.getById(req.params.id);
     if (!drone) return res.status(404).json({ error: 'not_found' });

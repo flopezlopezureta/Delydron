@@ -2,11 +2,14 @@ const express = require('express');
 const missionService = require('../services/missionService');
 const droneService = require('../services/droneService');
 const { getAdapter } = require('../services/adapterRegistry');
-const { auth } = require('../middleware/auth');
+const { auth, requireRole } = require('../middleware/auth');
 const { asyncHandler } = require('../utils/asyncHandler');
 const { validateWaypoints } = require('../utils/validation');
 
 const router = express.Router();
+// technician and auxiliary don't dispatch — technician's scope is drones'
+// home bases + read access, auxiliary is read-only across the whole app.
+const canDispatch = requireRole('admin', 'super_admin', 'operator');
 
 router.get(
   '/',
@@ -30,6 +33,7 @@ router.get(
 router.post(
   '/',
   auth,
+  canDispatch,
   asyncHandler(async (req, res) => {
     const waypointsError = validateWaypoints(req.body?.waypoints);
     if (waypointsError) return res.status(400).json({ error: waypointsError });
@@ -42,6 +46,7 @@ router.post(
 router.patch(
   '/:id',
   auth,
+  canDispatch,
   asyncHandler(async (req, res) => {
     const existing = await missionService.getById(req.params.id);
     if (!existing) return res.status(404).json({ error: 'not_found' });
@@ -59,6 +64,7 @@ router.patch(
 router.delete(
   '/:id',
   auth,
+  canDispatch,
   asyncHandler(async (req, res) => {
     const existing = await missionService.getById(req.params.id);
     if (!existing) return res.status(404).json({ error: 'not_found' });
@@ -73,6 +79,7 @@ router.delete(
 router.post(
   '/:id/dispatch',
   auth,
+  canDispatch,
   asyncHandler(async (req, res) => {
     const mission = await missionService.getById(req.params.id);
     if (!mission) return res.status(404).json({ error: 'not_found' });
@@ -93,6 +100,7 @@ router.post(
 router.post(
   '/:id/abort',
   auth,
+  canDispatch,
   asyncHandler(async (req, res) => {
     const mission = await missionService.getById(req.params.id);
     if (!mission) return res.status(404).json({ error: 'not_found' });

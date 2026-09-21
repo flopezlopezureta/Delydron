@@ -10,7 +10,7 @@ const DEFAULT_CENTER: [number, number] = [-33.4489, -70.6693];
 
 export function BasesPage() {
   const { user } = useAuth();
-  const isAdmin = user?.role === 'admin';
+  const isAdmin = user?.role === 'admin' || user?.role === 'super_admin';
   const { bases, loading, error, refetch } = useBases();
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);

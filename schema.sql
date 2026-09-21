@@ -14,11 +14,18 @@ CREATE TABLE IF NOT EXISTS users (
   email VARCHAR(255) NOT NULL UNIQUE,
   password_hash VARCHAR(255) NOT NULL,
   full_name VARCHAR(255) NOT NULL,
-  role VARCHAR(20) NOT NULL DEFAULT 'operator' CHECK (role IN ('admin','operator')),
+  role VARCHAR(20) NOT NULL DEFAULT 'operator'
+    CHECK (role IN ('super_admin','admin','operator','technician','auxiliary')),
   is_active BOOLEAN NOT NULL DEFAULT true,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+-- Explicit ALTER so the new roles reach databases that already ran an
+-- earlier version of this script (the inline CHECK above is a no-op
+-- against an existing table).
+ALTER TABLE users DROP CONSTRAINT IF EXISTS users_role_check;
+ALTER TABLE users ADD CONSTRAINT users_role_check
+  CHECK (role IN ('super_admin','admin','operator','technician','auxiliary'));
 
 -- BASES (dispatch depots/hubs) --------------------------------------------
 CREATE TABLE IF NOT EXISTS bases (

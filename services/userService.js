@@ -32,9 +32,16 @@ async function verifyPassword(user, password) {
   return bcrypt.compare(password, user.password_hash);
 }
 
-async function list() {
+// super_admin accounts are invisible to anyone who isn't super_admin
+// themselves — admins manage everyone below that tier, but not each other's
+// (or their own) ability to touch the top one.
+async function list(viewerRole) {
+  const hideSuperAdmin = viewerRole !== 'super_admin';
   const { rows } = await db.query(
-    'SELECT id, email, full_name, role, is_active, created_at FROM users ORDER BY full_name'
+    `SELECT id, email, full_name, role, is_active, created_at FROM users
+     WHERE NOT ($1 AND role = 'super_admin')
+     ORDER BY full_name`,
+    [hideSuperAdmin]
   );
   return rows;
 }
@@ -76,25 +83,31 @@ async function remove(id) {
 // BOOTSTRAP_ADMIN_PASSWORD, redeploy once, log in, then remove both env
 // vars — leaving them set would reset that account's password back to this
 // value on every future restart, silently undoing any later password change.
+const VALID_ROLES = ['super_admin', 'admin', 'operator', 'technician', 'auxiliary'];
+
 async function bootstrapAdminFromEnv() {
   const email = process.env.BOOTSTRAP_ADMIN_EMAIL;
   const password = process.env.BOOTSTRAP_ADMIN_PASSWORD;
   if (!email || !password) return;
 
+  const role = VALID_ROLES.includes(process.env.BOOTSTRAP_ADMIN_ROLE)
+    ? process.env.BOOTSTRAP_ADMIN_ROLE
+    : 'admin';
   const passwordHash = await bcrypt.hash(password, 10);
   const fullName = process.env.BOOTSTRAP_ADMIN_NAME || 'Admin';
   const { rows } = await db.query(
     `INSERT INTO users (email, password_hash, full_name, role, is_active)
-     VALUES ($1, $2, $3, 'admin', true)
+     VALUES ($1, $2, $3, $4, true)
      ON CONFLICT (email) DO UPDATE
-       SET password_hash = EXCLUDED.password_hash, role = 'admin', is_active = true, updated_at = now()
-     RETURNING id, email`,
-    [email, passwordHash, fullName]
+       SET password_hash = EXCLUDED.password_hash, role = EXCLUDED.role, is_active = true, updated_at = now()
+     RETURNING id, email, role`,
+    [email, passwordHash, fullName, role]
   );
-  console.log(`[bootstrap] Admin account ready: ${rows[0].email} (${rows[0].id}) — remove BOOTSTRAP_ADMIN_* env vars now.`);
+  console.log(`[bootstrap] Account ready: ${rows[0].email} / ${rows[0].role} (${rows[0].id}) — remove BOOTSTRAP_ADMIN_* env vars now.`);
 }
 
 module.exports = {
+  VALID_ROLES,
   findByEmail,
   findById,
   createUser,

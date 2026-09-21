@@ -18,7 +18,11 @@ const RECALLABLE_STATUSES = ['in_flight', 'unloading', 'returning', 'armed'];
 
 export function ConfigPage() {
   const { user } = useAuth();
-  const isAdmin = user?.role === 'admin';
+  const isAdmin = user?.role === 'admin' || user?.role === 'super_admin';
+  // Technicians can't create/delete drones or touch flight settings, but
+  // they can edit an existing drone's profile — including reassigning its
+  // home base, which is the whole point of the role per Fabian's spec.
+  const canEditDrones = isAdmin || user?.role === 'technician';
   const { drones, loading, error, refetch } = useDrones();
   const { bases } = useBases();
 
@@ -62,6 +66,12 @@ export function ConfigPage() {
     setModel(d.model ?? '');
     setMaxSpeedMps(String(d.max_speed_mps));
     setMaxRangeKm(String(d.max_range_km));
+    // Best-effort: preselect the base whose coordinates match the drone's
+    // current home position, so editing doesn't look like it "forgot" it.
+    // No match (e.g. it was set by geocoding an address) just leaves it
+    // unselected — you still pick one explicitly to actually change it.
+    const currentBase = bases.find((b) => b.lat === d.home_lat && b.lon === d.home_lon);
+    setHomeBaseId(currentBase?.id ?? '');
     setFormError(null);
     setShowForm(true);
   }
@@ -73,15 +83,16 @@ export function ConfigPage() {
     setSubmitting(true);
     try {
       if (editingId) {
-        // Home position isn't editable here — the base a drone launched
-        // from isn't something you change after the fact, same reasoning
-        // as why the backend's own PATCH doesn't accept home_lat/home_lon.
+        const base = bases.find((b) => b.id === homeBaseId);
         await updateDrone(editingId, {
           name,
           serial_number: serialNumber || undefined,
           model: model || undefined,
           max_speed_mps: maxSpeedMps ? Number(maxSpeedMps) : undefined,
           max_range_km: maxRangeKm ? Number(maxRangeKm) : undefined,
+          // Only sent when a base is actually selected — leaving it on "sin
+          // cambios" keeps whatever home position the drone already has.
+          ...(base ? { home_lat: base.lat, home_lon: base.lon } : {}),
         });
       } else {
         const base = bases.find((b) => b.id === homeBaseId);
@@ -243,7 +254,7 @@ export function ConfigPage() {
           )}
         </div>
 
-        {isAdmin && showForm && (
+        {canEditDrones && showForm && (
           <div className="mb-4 max-w-lg rounded-lg border border-slate-200 bg-white p-4">
             <h3 className="mb-2 text-sm font-semibold text-slate-700">
               {editingId ? 'Editar dron' : 'Nuevo dron'}
@@ -296,27 +307,23 @@ export function ConfigPage() {
                 />
               </div>
             </div>
-            {!editingId && (
-              <>
-                <label className="mb-1 block text-xs text-slate-600">Base de origen</label>
-                <select
-                  value={homeBaseId}
-                  onChange={(e) => setHomeBaseId(e.target.value)}
-                  className="mb-3 w-full rounded border border-slate-300 px-2 py-1.5 text-sm"
-                >
-                  <option value="">Elegí una base...</option>
-                  {bases.map((b) => (
-                    <option key={b.id} value={b.id}>
-                      {b.name}
-                    </option>
-                  ))}
-                </select>
-                {bases.length === 0 && (
-                  <p className="mb-3 text-xs text-amber-600">
-                    Todavía no hay bases creadas — andá a "Bases" y creá una primero.
-                  </p>
-                )}
-              </>
+            <label className="mb-1 block text-xs text-slate-600">Base de origen</label>
+            <select
+              value={homeBaseId}
+              onChange={(e) => setHomeBaseId(e.target.value)}
+              className="mb-3 w-full rounded border border-slate-300 px-2 py-1.5 text-sm"
+            >
+              <option value="">{editingId ? 'Sin cambios' : 'Elegí una base...'}</option>
+              {bases.map((b) => (
+                <option key={b.id} value={b.id}>
+                  {b.name}
+                </option>
+              ))}
+            </select>
+            {bases.length === 0 && (
+              <p className="mb-3 text-xs text-amber-600">
+                Todavía no hay bases creadas — andá a "Bases" y creá una primero.
+              </p>
             )}
             {formError && <div className="mb-3 text-sm text-red-600">{formError}</div>}
             <div className="flex gap-2">
@@ -369,7 +376,7 @@ export function ConfigPage() {
                       <td className="px-4 py-2 text-slate-600">{Number(d.max_range_km)} km</td>
                       <td className="px-4 py-2">
                         <div className="flex flex-wrap gap-2">
-                          {isAdmin && (
+                          {canEditDrones && (
                             <button
                               disabled={busy}
                               onClick={() => startEdit(d)}

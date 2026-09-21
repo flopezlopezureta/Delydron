@@ -16,7 +16,7 @@ router.get(
 router.patch(
   '/',
   auth,
-  requireRole('admin'),
+  requireRole('admin', 'super_admin'),
   asyncHandler(async (req, res) => {
     for (const [key, value] of Object.entries(req.body || {})) {
       if (!(key in settingsService.DEFAULTS)) continue; // ignore anything unrecognized

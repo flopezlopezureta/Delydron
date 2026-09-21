@@ -35,6 +35,8 @@ export interface UpdateDroneInput {
   model?: string;
   max_speed_mps?: number;
   max_range_km?: number;
+  home_lat?: number;
+  home_lon?: number;
 }
 
 export function updateDrone(id: string, input: UpdateDroneInput): Promise<Drone> {
