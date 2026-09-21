@@ -135,12 +135,16 @@ async function update(id, fields) {
   if (!sets.length) return getById(id);
 
   // Assigning a drone to a still-draft mission also moves it to 'assigned'.
-  // Reuses the same $N bound above for drone_id — a second parameter here
-  // just for "IS NOT NULL" gives Postgres no column/literal to infer its
-  // type from and fails with 42P18 (could not determine data type of
-  // parameter), even though the value is identical.
+  // Reuses the same $N bound above for drone_id rather than a second
+  // parameter, but that alone isn't enough: when drone_id is the *only*
+  // field being set, "$N IS NOT NULL" is the sole other place $N appears,
+  // and on its own that gives Postgres no type to infer (fails with 42P08,
+  // "could not determine data type of parameter"). The explicit ::uuid
+  // cast pins it down regardless of what else is in the SET list.
   if (droneIdParam !== null) {
-    sets.push(`status = CASE WHEN status = 'draft' AND $${droneIdParam} IS NOT NULL THEN 'assigned' ELSE status END`);
+    sets.push(
+      `status = CASE WHEN status = 'draft' AND $${droneIdParam}::uuid IS NOT NULL THEN 'assigned' ELSE status END`
+    );
   }
 
   values.push(id);
