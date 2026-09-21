@@ -41,6 +41,7 @@ async function list() {
 
 async function update(id, fields) {
   const allowed = {};
+  if (fields.email !== undefined) allowed.email = fields.email;
   if (fields.fullName !== undefined) allowed.full_name = fields.fullName;
   if (fields.role !== undefined) allowed.role = fields.role;
   if (fields.isActive !== undefined) allowed.is_active = fields.isActive;

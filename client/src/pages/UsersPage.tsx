@@ -11,6 +11,7 @@ export function UsersPage() {
   const [busyId, setBusyId] = useState<string | null>(null);
 
   const [showForm, setShowForm] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
@@ -34,17 +35,37 @@ export function UsersPage() {
     setFullName('');
     setRole('operator');
     setFormError(null);
+    setEditingId(null);
     setShowForm(false);
   }
 
-  async function handleCreate() {
+  function startEdit(u: ManagedUser) {
+    setEditingId(u.id);
+    setEmail(u.email);
+    setFullName(u.full_name);
+    setPassword('');
+    setRole(u.role);
     setFormError(null);
-    if (!email.trim() || !password.trim() || !fullName.trim()) {
+    setShowForm(true);
+  }
+
+  async function handleSubmit() {
+    setFormError(null);
+    if (!email.trim() || !fullName.trim() || (!editingId && !password.trim())) {
       return setFormError('Completá email, contraseña y nombre.');
     }
     setSubmitting(true);
     try {
-      await createUser({ email, password, fullName, role });
+      if (editingId) {
+        await updateUser(editingId, {
+          email,
+          fullName,
+          role,
+          ...(password.trim() ? { password } : {}),
+        });
+      } else {
+        await createUser({ email, password, fullName, role });
+      }
       resetForm();
       refetch();
     } catch (err) {
@@ -53,7 +74,7 @@ export function UsersPage() {
           ? 'Ese email ya está en uso.'
           : err instanceof Error
             ? err.message
-            : 'No se pudo crear el usuario.'
+            : 'No se pudo guardar el usuario.'
       );
     } finally {
       setSubmitting(false);
@@ -114,6 +135,9 @@ export function UsersPage() {
 
       {showForm && (
         <div className="mb-4 max-w-lg rounded-lg border border-slate-200 bg-white p-4">
+          <h2 className="mb-2 text-sm font-semibold text-slate-700">
+            {editingId ? 'Editar usuario' : 'Nuevo usuario'}
+          </h2>
           <label className="mb-1 block text-xs text-slate-600">Nombre completo</label>
           <input
             value={fullName}
@@ -127,7 +151,9 @@ export function UsersPage() {
             onChange={(e) => setEmail(e.target.value)}
             className="mb-3 w-full rounded border border-slate-300 px-2 py-1.5 text-sm"
           />
-          <label className="mb-1 block text-xs text-slate-600">Contraseña</label>
+          <label className="mb-1 block text-xs text-slate-600">
+            Contraseña{editingId && ' (dejar en blanco para no cambiarla)'}
+          </label>
           <input
             type="password"
             value={password}
@@ -138,7 +164,8 @@ export function UsersPage() {
           <select
             value={role}
             onChange={(e) => setRole(e.target.value as UserRole)}
-            className="mb-3 w-full rounded border border-slate-300 px-2 py-1.5 text-sm"
+            disabled={editingId === currentUser?.id}
+            className="mb-3 w-full rounded border border-slate-300 px-2 py-1.5 text-sm disabled:opacity-50"
           >
             <option value="operator">Operador</option>
             <option value="admin">Admin</option>
@@ -146,7 +173,7 @@ export function UsersPage() {
           {formError && <div className="mb-3 text-sm text-red-600">{formError}</div>}
           <div className="flex gap-2">
             <button
-              onClick={handleCreate}
+              onClick={handleSubmit}
               disabled={submitting}
               className="rounded bg-slate-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-50"
             >
@@ -197,14 +224,23 @@ export function UsersPage() {
                     </td>
                     <td className="px-4 py-2 text-slate-600">{u.is_active ? 'Activo' : 'Inactivo'}</td>
                     <td className="px-4 py-2">
-                      <button
-                        disabled={busy || isSelf}
-                        onClick={() => handleToggleActive(u)}
-                        title={isSelf ? 'No podés desactivarte a vos mismo.' : undefined}
-                        className="rounded border border-slate-300 px-2 py-1 text-xs text-slate-600 hover:bg-slate-50 disabled:opacity-50"
-                      >
-                        {u.is_active ? 'Desactivar' : 'Reactivar'}
-                      </button>
+                      <div className="flex gap-2">
+                        <button
+                          disabled={busy}
+                          onClick={() => startEdit(u)}
+                          className="rounded border border-slate-300 px-2 py-1 text-xs text-slate-600 hover:bg-slate-50 disabled:opacity-50"
+                        >
+                          Editar
+                        </button>
+                        <button
+                          disabled={busy || isSelf}
+                          onClick={() => handleToggleActive(u)}
+                          title={isSelf ? 'No podés desactivarte a vos mismo.' : undefined}
+                          className="rounded border border-slate-300 px-2 py-1 text-xs text-slate-600 hover:bg-slate-50 disabled:opacity-50"
+                        >
+                          {u.is_active ? 'Desactivar' : 'Reactivar'}
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 );

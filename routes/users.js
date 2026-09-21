@@ -46,9 +46,14 @@ router.patch(
     if (req.body?.role && !VALID_ROLES.includes(req.body.role)) {
       return res.status(400).json({ error: 'invalid_role' });
     }
-    const user = await userService.update(req.params.id, req.body || {});
-    if (!user) return res.status(404).json({ error: 'not_found' });
-    res.json(user);
+    try {
+      const user = await userService.update(req.params.id, req.body || {});
+      if (!user) return res.status(404).json({ error: 'not_found' });
+      res.json(user);
+    } catch (err) {
+      if (err.code === '23505') return res.status(409).json({ error: 'email_already_in_use' });
+      throw err;
+    }
   })
 );
 
