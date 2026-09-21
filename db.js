@@ -1,3 +1,5 @@
+const fs = require('fs');
+const path = require('path');
 const { Pool } = require('pg');
 
 let pool = null;
@@ -50,4 +52,14 @@ async function getClient() {
   return getPool().connect();
 }
 
-module.exports = { getPool, query, getClient };
+// schema.sql is written entirely as CREATE ... IF NOT EXISTS / DROP
+// CONSTRAINT IF EXISTS + ADD CONSTRAINT, specifically so it's safe to run
+// on every boot — no separate manual migration step (and no dependency on
+// shell/Terminal access) needed for a schema change to actually reach a
+// running deploy.
+async function applySchema() {
+  const schema = fs.readFileSync(path.join(__dirname, 'schema.sql'), 'utf8');
+  await query(schema);
+}
+
+module.exports = { getPool, query, getClient, applySchema };

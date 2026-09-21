@@ -7,7 +7,7 @@ const helmet = require('helmet');
 const cors = require('cors');
 const rateLimit = require('express-rate-limit');
 
-const { getPool } = require('./db');
+const { getPool, applySchema } = require('./db');
 const { bus } = require('./services/telemetryBus');
 const { initAdapter } = require('./services/adapterRegistry');
 const missionService = require('./services/missionService');
@@ -72,6 +72,7 @@ if (fs.existsSync(clientIndexHtml)) {
 app.use(errorHandler);
 
 async function start() {
+  await applySchema();
   await userService.bootstrapAdminFromEnv();
 
   const adapter = initAdapter({ bus, pool: getPool() });
