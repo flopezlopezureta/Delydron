@@ -72,4 +72,35 @@ async function remove(id) {
   await db.query('UPDATE users SET is_active = false, updated_at = now() WHERE id = $1', [id]);
 }
 
-module.exports = { findByEmail, findById, createUser, verifyPassword, list, update, remove };
+// Recovery hatch for a locked-out deploy: set BOOTSTRAP_ADMIN_EMAIL and
+// BOOTSTRAP_ADMIN_PASSWORD, redeploy once, log in, then remove both env
+// vars — leaving them set would reset that account's password back to this
+// value on every future restart, silently undoing any later password change.
+async function bootstrapAdminFromEnv() {
+  const email = process.env.BOOTSTRAP_ADMIN_EMAIL;
+  const password = process.env.BOOTSTRAP_ADMIN_PASSWORD;
+  if (!email || !password) return;
+
+  const passwordHash = await bcrypt.hash(password, 10);
+  const fullName = process.env.BOOTSTRAP_ADMIN_NAME || 'Admin';
+  const { rows } = await db.query(
+    `INSERT INTO users (email, password_hash, full_name, role, is_active)
+     VALUES ($1, $2, $3, 'admin', true)
+     ON CONFLICT (email) DO UPDATE
+       SET password_hash = EXCLUDED.password_hash, role = 'admin', is_active = true, updated_at = now()
+     RETURNING id, email`,
+    [email, passwordHash, fullName]
+  );
+  console.log(`[bootstrap] Admin account ready: ${rows[0].email} (${rows[0].id}) — remove BOOTSTRAP_ADMIN_* env vars now.`);
+}
+
+module.exports = {
+  findByEmail,
+  findById,
+  createUser,
+  verifyPassword,
+  list,
+  update,
+  remove,
+  bootstrapAdminFromEnv,
+};

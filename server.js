@@ -11,6 +11,7 @@ const { getPool } = require('./db');
 const { bus } = require('./services/telemetryBus');
 const { initAdapter } = require('./services/adapterRegistry');
 const missionService = require('./services/missionService');
+const userService = require('./services/userService');
 const { errorHandler } = require('./middleware/errorHandler');
 
 const PORT = process.env.PORT || 3000;
@@ -71,6 +72,8 @@ if (fs.existsSync(clientIndexHtml)) {
 app.use(errorHandler);
 
 async function start() {
+  await userService.bootstrapAdminFromEnv();
+
   const adapter = initAdapter({ bus, pool: getPool() });
   await adapter.init();
 
