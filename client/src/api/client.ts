@@ -40,7 +40,10 @@ export async function apiFetch<T>(path: string, options: RequestOptions = {}): P
 
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
-    throw new Error(body.error || `request_failed_${res.status}`);
+    // `message` is the human-readable explanation some routes add (e.g. why
+    // a dispatch was blocked) — prefer it over the bare machine code so the
+    // operator sees the actual reason instead of a string like "dispatch_infeasible".
+    throw new Error(body.message || body.error || `request_failed_${res.status}`);
   }
 
   if (res.status === 204) return undefined as T;

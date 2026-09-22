@@ -39,6 +39,9 @@ router.post(
     const waypointsError = validateWaypoints(req.body?.waypoints);
     if (waypointsError) return res.status(400).json({ error: waypointsError });
 
+    const zoneReason = await missionService.checkWaypointsAgainstNoFlyZones(req.body?.waypoints);
+    if (zoneReason) return res.status(409).json({ error: 'route_restricted', message: zoneReason });
+
     const mission = await missionService.create({ ...req.body, createdBy: req.user.sub });
     res.status(201).json(mission);
   })
@@ -57,6 +60,11 @@ router.patch(
 
     const waypointsError = validateWaypoints(req.body?.waypoints);
     if (waypointsError) return res.status(400).json({ error: waypointsError });
+
+    if (req.body?.waypoints) {
+      const zoneReason = await missionService.checkWaypointsAgainstNoFlyZones(req.body.waypoints);
+      if (zoneReason) return res.status(409).json({ error: 'route_restricted', message: zoneReason });
+    }
 
     res.json(await missionService.update(req.params.id, req.body || {}));
   })
@@ -95,7 +103,7 @@ router.post(
 
     const infeasibleReason = await missionService.checkDispatchFeasible(mission, drone);
     if (infeasibleReason) {
-      return res.status(409).json({ error: 'insufficient_range', message: infeasibleReason });
+      return res.status(409).json({ error: 'dispatch_infeasible', message: infeasibleReason });
     }
 
     await getAdapter().startMission(mission.drone_id, mission);

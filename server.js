@@ -55,6 +55,7 @@ app.use('/api/auth', require('./routes/auth'));
 app.use('/api/users', require('./routes/users'));
 app.use('/api/drones', require('./routes/drones'));
 app.use('/api/bases', require('./routes/bases'));
+app.use('/api/no-fly-zones', require('./routes/noFlyZones'));
 app.use('/api/settings', require('./routes/settings'));
 app.use('/api/missions', require('./routes/missions'));
 app.use('/api/deliveries', require('./routes/deliveries'));

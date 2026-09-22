@@ -22,6 +22,9 @@ export function NavBar() {
           <NavLink to="/bases" className={linkClass}>
             Bases
           </NavLink>
+          <NavLink to="/no-fly-zones" className={linkClass}>
+            Zonas restringidas
+          </NavLink>
           <NavLink to="/deliveries" className={linkClass}>
             Historial
           </NavLink>

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef } from 'react';
 import * as L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import type { Base, Delivery, Drone, DroneStatus, Mission, TelemetryPayload, Waypoint } from '../../types';
+import type { Base, Delivery, Drone, DroneStatus, Mission, NoFlyZone, TelemetryPayload, Waypoint } from '../../types';
 
 interface LiveMapProps {
   drones: Drone[];
@@ -9,6 +9,7 @@ interface LiveMapProps {
   missions: Mission[];
   deliveries: Delivery[];
   telemetryByDrone: Record<string, TelemetryPayload>;
+  noFlyZones?: NoFlyZone[];
 }
 
 function baseIconHtml() {
@@ -91,11 +92,12 @@ function resolveReturnPoint(
   return null;
 }
 
-export function LiveMap({ drones, bases, missions, deliveries, telemetryByDrone }: LiveMapProps) {
+export function LiveMap({ drones, bases, missions, deliveries, telemetryByDrone, noFlyZones = [] }: LiveMapProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<L.Map | null>(null);
   const markersRef = useRef<Record<string, L.Marker>>({});
   const baseMarkersRef = useRef<L.Marker[]>([]);
+  const zoneCirclesRef = useRef<L.Circle[]>([]);
   const trailPointsRef = useRef<Record<string, [number, number][]>>({});
   const trailMissionRef = useRef<Record<string, string | null>>({});
   const trailLinesRef = useRef<Record<string, L.Polyline>>({});
@@ -139,8 +141,31 @@ export function LiveMap({ drones, bases, missions, deliveries, telemetryByDrone 
       baseMarkersRef.current = [];
       trailLinesRef.current = {};
       remainingLinesRef.current = {};
+      zoneCirclesRef.current = [];
     };
   }, []);
+
+  // Restricted zones are static reference context — same rebuild-on-change
+  // treatment as bases, not the incremental updates the live telemetry uses.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+
+    for (const circle of zoneCirclesRef.current) circle.remove();
+    zoneCirclesRef.current = noFlyZones
+      .filter((z) => z.active)
+      .map((z) => {
+        const circle = L.circle([z.lat, z.lon], {
+          radius: Number(z.radius_m),
+          color: '#dc2626',
+          weight: 2,
+          fillColor: '#dc2626',
+          fillOpacity: 0.12,
+        }).addTo(map);
+        circle.bindTooltip(`Zona restringida: ${z.name}`);
+        return circle;
+      });
+  }, [noFlyZones]);
 
   // Bases are static reference points (dispatch depots), rebuilt in full
   // whenever the list changes rather than incrementally like drone telemetry.

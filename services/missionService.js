@@ -1,8 +1,9 @@
 const db = require('../db');
 const { publishMissionStatus } = require('./telemetryBus');
-const { haversineMeters } = require('../utils/geo');
+const { haversineMeters, distanceToSegmentMeters } = require('../utils/geo');
 const settingsService = require('./settingsService');
 const baseService = require('./baseService');
+const noFlyZoneService = require('./noFlyZoneService');
 
 async function getById(id) {
   const { rows } = await db.query('SELECT * FROM missions WHERE id = $1', [id]);
@@ -201,27 +202,29 @@ async function updateStatus(id, status, { notes, reasonCode } = {}) {
   return mission;
 }
 
-// Round-trip distance the mission would actually fly: an optional pickup
-// leg, then each destination in order, then the return leg — the same path
-// SimulatedAdapter flies, computed ahead of dispatch so a route the battery
-// can't realistically finish never leaves the ground.
-async function plannedRouteMeters(mission, drone) {
+// Every leg of the route the mission will actually fly, in order: an
+// optional pickup leg, then each destination, then the return leg — the
+// same path SimulatedAdapter flies. Shared by the range/battery check and
+// the no-fly-zone check below so both agree on what "the route" means.
+async function resolveRouteLegs(mission, drone) {
   const start = { lat: drone.lat ?? drone.home_lat, lon: drone.lon ?? drone.home_lon };
+  const legs = [];
   let from = start;
-  let total = 0;
 
   if (mission.pickup_base_id) {
     const base = await baseService.getById(mission.pickup_base_id);
     if (base) {
-      total += haversineMeters(from, base);
-      from = { lat: base.lat, lon: base.lon };
+      const point = { lat: base.lat, lon: base.lon };
+      legs.push([from, point]);
+      from = point;
     }
   }
 
   const waypoints = [...(mission.waypoints || [])].sort((a, b) => a.seq - b.seq);
   for (const wp of waypoints) {
-    total += haversineMeters(from, wp);
-    from = wp;
+    const point = { lat: wp.lat, lon: wp.lon };
+    legs.push([from, point]);
+    from = point;
   }
 
   let returnPoint = { lat: drone.home_lat, lon: drone.home_lon };
@@ -229,17 +232,59 @@ async function plannedRouteMeters(mission, drone) {
     const base = await baseService.getById(mission.return_base_id);
     if (base) returnPoint = { lat: base.lat, lon: base.lon };
   }
-  total += haversineMeters(from, returnPoint);
+  legs.push([from, returnPoint]);
 
-  return total;
+  return legs;
 }
 
-// Pre-dispatch safety gate: refuses to launch a mission whose planned round
-// trip exceeds either the drone's rated range or what its current battery
-// can cover while still holding back the configured reserve. Returns null
-// when the route is feasible, or a human-readable reason when it isn't.
+async function plannedRouteMeters(mission, drone) {
+  const legs = await resolveRouteLegs(mission, drone);
+  return legs.reduce((total, [a, b]) => total + haversineMeters(a, b), 0);
+}
+
+// Checks a set of route legs against every active no-fly zone, returning a
+// human-readable reason for the first breach, or null if the route is clear.
+async function checkLegsAgainstNoFlyZones(legs) {
+  const zones = await noFlyZoneService.listActive();
+  if (!zones.length) return null;
+
+  for (const zone of zones) {
+    for (const [a, b] of legs) {
+      const distance = distanceToSegmentMeters(zone, a, b);
+      if (distance < Number(zone.radius_m)) {
+        return `La ruta pasa por la zona restringida "${zone.name}" (radio ${Number(zone.radius_m).toFixed(0)} m).`;
+      }
+    }
+  }
+  return null;
+}
+
+// Create/update-time check — a drone isn't necessarily assigned yet at that
+// point, so only the destination-to-destination legs are known, but that's
+// still enough to catch a route drawn straight through a restricted zone
+// before it's ever dispatched (dispatch re-checks the full route, pickup
+// and return legs included, once a drone is attached).
+async function checkWaypointsAgainstNoFlyZones(waypoints) {
+  const sorted = [...(waypoints || [])].sort((a, b) => a.seq - b.seq);
+  const legs = [];
+  for (let i = 1; i < sorted.length; i++) {
+    legs.push([
+      { lat: sorted[i - 1].lat, lon: sorted[i - 1].lon },
+      { lat: sorted[i].lat, lon: sorted[i].lon },
+    ]);
+  }
+  if (!legs.length) return null;
+  return checkLegsAgainstNoFlyZones(legs);
+}
+
+// Pre-dispatch safety gate: refuses to launch a mission whose planned route
+// exceeds the drone's rated range, exceeds what its current battery can
+// cover while holding back the configured reserve, or passes through an
+// active no-fly zone. Returns null when clear, or a human-readable reason.
 async function checkDispatchFeasible(mission, drone) {
-  const routeM = await plannedRouteMeters(mission, drone);
+  const legs = await resolveRouteLegs(mission, drone);
+  const routeM = legs.reduce((total, [a, b]) => total + haversineMeters(a, b), 0);
+
   const maxRangeM = Number(drone.max_range_km) * 1000;
   if (routeM > maxRangeM) {
     return `La ruta planificada (${(routeM / 1000).toFixed(1)} km) supera la autonomía máxima del dron (${Number(drone.max_range_km).toFixed(1)} km).`;
@@ -254,7 +299,7 @@ async function checkDispatchFeasible(mission, drone) {
     return `La batería actual (${Number(drone.battery_pct).toFixed(0)}%) no alcanza para completar la ruta (${(routeM / 1000).toFixed(1)} km) y volver dejando ${reservePct}% de reserva.`;
   }
 
-  return null;
+  return checkLegsAgainstNoFlyZones(legs);
 }
 
 module.exports = {
@@ -265,6 +310,7 @@ module.exports = {
   updateCurrentWaypoint,
   updateStatus,
   checkDispatchFeasible,
+  checkWaypointsAgainstNoFlyZones,
   list,
   create,
   update,

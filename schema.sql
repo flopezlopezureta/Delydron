@@ -165,6 +165,25 @@ CREATE INDEX IF NOT EXISTS idx_deliveries_delivered_at ON deliveries(delivered_a
 ALTER TABLE deliveries ADD COLUMN IF NOT EXISTS confirmation_code VARCHAR(12)
   UNIQUE DEFAULT upper(substr(encode(gen_random_bytes(6), 'hex'), 1, 8));
 
+-- NO_FLY_ZONES (restricted airspace — airports, hospitals, event venues) -
+-- Circles, not polygons: simpler to store/validate/draw, and it matches how
+-- real published restricted areas around a single point (an airport, a
+-- prison) are usually described anyway. A route is blocked if any leg
+-- passes within radius_m of the center — see missionService's geofence
+-- checks.
+CREATE TABLE IF NOT EXISTS no_fly_zones (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name VARCHAR(100) NOT NULL,
+  lat DOUBLE PRECISION NOT NULL,
+  lon DOUBLE PRECISION NOT NULL,
+  radius_m NUMERIC(10,2) NOT NULL CHECK (radius_m > 0),
+  active BOOLEAN NOT NULL DEFAULT true,
+  notes VARCHAR(255),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_no_fly_zones_active ON no_fly_zones(active);
+
 -- AUDIT_LOG (who did what, to which mission/drone/user, and when) ---------
 CREATE TABLE IF NOT EXISTS audit_log (
   id BIGSERIAL PRIMARY KEY,

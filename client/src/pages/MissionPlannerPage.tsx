@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useDrones } from '../hooks/useDrones';
 import { useBases } from '../hooks/useBases';
+import { useNoFlyZones } from '../hooks/useNoFlyZones';
 import { createMission, getMission, updateMission } from '../api/missions';
 import type { AddressSuggestion } from '../api/geocoding';
 import { getSettings } from '../api/settings';
@@ -21,6 +22,7 @@ export function MissionPlannerPage() {
   const sourceId = editId || repeatFrom;
   const { drones } = useDrones();
   const { bases } = useBases();
+  const { zones: noFlyZones } = useNoFlyZones();
   const idleDrones = drones.filter((d) => d.status === 'idle');
 
   const [droneId, setDroneId] = useState('');
@@ -185,6 +187,7 @@ export function MissionPlannerPage() {
         <WaypointPlannerMap
           center={mapCenter}
           waypoints={waypoints}
+          noFlyZones={noFlyZones}
           onAddWaypoint={addWaypoint}
           onMoveWaypoint={moveWaypoint}
         />

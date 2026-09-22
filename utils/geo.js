@@ -46,4 +46,39 @@ function bearingDeg(a, b) {
   return (toDeg(Math.atan2(y, x)) + 360) % 360;
 }
 
-module.exports = { haversineMeters, interpolateAlongPath, bearingDeg };
+// Planar meters-per-degree at a given latitude — accurate enough for the
+// short urban legs a delivery route flies (a few to a few dozen km), and
+// far simpler than proper great-circle segment geometry for what's really
+// just "is this leg near that point".
+function metersPerDegree(lat) {
+  const latRad = toRad(lat);
+  return { lat: 111320, lon: 111320 * Math.cos(latRad) };
+}
+
+function toLocalXY(point, origin) {
+  const mpd = metersPerDegree(origin.lat);
+  return {
+    x: (point.lon - origin.lon) * mpd.lon,
+    y: (point.lat - origin.lat) * mpd.lat,
+  };
+}
+
+// Shortest distance, in meters, from `point` to the line segment
+// segStart->segEnd — used to check whether a flight leg passes through a
+// no-fly zone's circle, not just whether its endpoints happen to land
+// inside it.
+function distanceToSegmentMeters(point, segStart, segEnd) {
+  const origin = segStart;
+  const p = toLocalXY(point, origin);
+  const b = toLocalXY(segEnd, origin);
+
+  const lengthSq = b.x * b.x + b.y * b.y;
+  const t = lengthSq === 0 ? 0 : Math.max(0, Math.min(1, (p.x * b.x + p.y * b.y) / lengthSq));
+  const closest = { x: t * b.x, y: t * b.y };
+
+  const dx = p.x - closest.x;
+  const dy = p.y - closest.y;
+  return Math.sqrt(dx * dx + dy * dy);
+}
+
+module.exports = { haversineMeters, interpolateAlongPath, bearingDeg, distanceToSegmentMeters };

@@ -1,10 +1,11 @@
 import { useEffect, useRef } from 'react';
 import * as L from 'leaflet';
-import type { Waypoint } from '../../types';
+import type { NoFlyZone, Waypoint } from '../../types';
 
 interface WaypointPlannerMapProps {
   center: [number, number];
   waypoints: Waypoint[];
+  noFlyZones?: NoFlyZone[];
   onAddWaypoint: (lat: number, lon: number) => void;
   onMoveWaypoint: (index: number, lat: number, lon: number) => void;
 }
@@ -24,11 +25,18 @@ function numberedIcon(n: number) {
 // click handler plus draggable numbered markers — simpler to reason about
 // than leaflet-draw's shape-editing UX for what is really just an ordered
 // list of points.
-export function WaypointPlannerMap({ center, waypoints, onAddWaypoint, onMoveWaypoint }: WaypointPlannerMapProps) {
+export function WaypointPlannerMap({
+  center,
+  waypoints,
+  noFlyZones = [],
+  onAddWaypoint,
+  onMoveWaypoint,
+}: WaypointPlannerMapProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<L.Map | null>(null);
   const markersRef = useRef<L.Marker[]>([]);
   const lineRef = useRef<L.Polyline | null>(null);
+  const zoneCirclesRef = useRef<L.Circle[]>([]);
   const onAddRef = useRef(onAddWaypoint);
   const onMoveRef = useRef(onMoveWaypoint);
 
@@ -55,9 +63,33 @@ export function WaypointPlannerMap({ center, waypoints, onAddWaypoint, onMoveWay
       mapRef.current = null;
       markersRef.current = [];
       lineRef.current = null;
+      zoneCirclesRef.current = [];
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Restricted zones are reference context, not something drawn on top of
+  // the route drag-and-drop — a plain redraw whenever the list changes is
+  // enough, no incremental updates needed.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+
+    for (const circle of zoneCirclesRef.current) circle.remove();
+    zoneCirclesRef.current = noFlyZones
+      .filter((z) => z.active)
+      .map((z) => {
+        const circle = L.circle([z.lat, z.lon], {
+          radius: Number(z.radius_m),
+          color: '#dc2626',
+          weight: 2,
+          fillColor: '#dc2626',
+          fillOpacity: 0.12,
+        }).addTo(map);
+        circle.bindTooltip(`Zona restringida: ${z.name}`);
+        return circle;
+      });
+  }, [noFlyZones]);
 
   // Redraw markers + connecting line whenever the waypoint list changes.
   // Small, infrequently-edited list, so a full rebuild each time is simpler

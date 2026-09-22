@@ -67,6 +67,16 @@ export interface Base {
   lon: number;
 }
 
+export interface NoFlyZone {
+  id: string;
+  name: string;
+  lat: number;
+  lon: number;
+  radius_m: string | number;
+  active: boolean;
+  notes: string | null;
+}
+
 export type MissionStatus =
   | 'draft'
   | 'scheduled'

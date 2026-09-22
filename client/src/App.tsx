@@ -7,6 +7,7 @@ import { DashboardPage } from './pages/DashboardPage';
 import { MissionsPage } from './pages/MissionsPage';
 import { MissionPlannerPage } from './pages/MissionPlannerPage';
 import { BasesPage } from './pages/BasesPage';
+import { NoFlyZonesPage } from './pages/NoFlyZonesPage';
 import { DeliveriesPage } from './pages/DeliveriesPage';
 import { ConfigPage } from './pages/ConfigPage';
 import { UsersPage } from './pages/UsersPage';
@@ -44,6 +45,7 @@ export default function App() {
             <Route path="missions" element={<MissionsPage />} />
             <Route path="missions/new" element={<MissionPlannerPage />} />
             <Route path="bases" element={<BasesPage />} />
+            <Route path="no-fly-zones" element={<NoFlyZonesPage />} />
             <Route path="deliveries" element={<DeliveriesPage />} />
             <Route path="config" element={<ConfigPage />} />
             <Route path="users" element={<UsersPage />} />

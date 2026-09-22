@@ -1,6 +1,7 @@
 import { useDrones } from '../hooks/useDrones';
 import { useBases } from '../hooks/useBases';
 import { useMissions } from '../hooks/useMissions';
+import { useNoFlyZones } from '../hooks/useNoFlyZones';
 import { useFleetTelemetry } from '../hooks/useFleetTelemetry';
 import { LiveMap } from '../components/map/LiveMap';
 import { TelemetryHud } from '../components/map/TelemetryHud';
@@ -10,6 +11,7 @@ export function DashboardPage() {
   const { drones, loading, error } = useDrones();
   const { bases } = useBases();
   const { missions } = useMissions();
+  const { zones: noFlyZones } = useNoFlyZones();
   const { telemetryByDrone, liveDeliveries } = useFleetTelemetry();
 
   if (loading) {
@@ -28,6 +30,7 @@ export function DashboardPage() {
         missions={missions}
         deliveries={liveDeliveries}
         telemetryByDrone={telemetryByDrone}
+        noFlyZones={noFlyZones}
       />
       <TelemetryHud drones={drones} telemetryByDrone={telemetryByDrone} missions={missions} />
       <MissionSummaryBar missions={missions} />
