@@ -10,6 +10,8 @@ import { BasesPage } from './pages/BasesPage';
 import { DeliveriesPage } from './pages/DeliveriesPage';
 import { ConfigPage } from './pages/ConfigPage';
 import { UsersPage } from './pages/UsersPage';
+import { AuditLogPage } from './pages/AuditLogPage';
+import { TrackingPage } from './pages/TrackingPage';
 
 function AppShell() {
   return (
@@ -28,6 +30,8 @@ export default function App() {
       <AuthProvider>
         <Routes>
           <Route path="/login" element={<LoginPage />} />
+          {/* Public — no account needed, shared straight with a client. */}
+          <Route path="/t/:token" element={<TrackingPage />} />
           <Route
             path="/"
             element={
@@ -43,6 +47,7 @@ export default function App() {
             <Route path="deliveries" element={<DeliveriesPage />} />
             <Route path="config" element={<ConfigPage />} />
             <Route path="users" element={<UsersPage />} />
+            <Route path="audit" element={<AuditLogPage />} />
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

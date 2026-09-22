@@ -6,6 +6,7 @@ const telemetryService = require('../telemetryService');
 const deliveryService = require('../deliveryService');
 const baseService = require('../baseService');
 const settingsService = require('../settingsService');
+const auditService = require('../auditService');
 const { publishTelemetry, publishDelivery } = require('../telemetryBus');
 
 // Engine-internal tuning, not exposed in the Configuración page — changing
@@ -17,6 +18,22 @@ const { publishTelemetry, publishDelivery } = require('../telemetryBus');
 const TICK_MS = Number(process.env.SIM_TICK_MS) || 1000;
 const DEFAULT_SPEED_MPS = Number(process.env.SIM_DEFAULT_SPEED_MPS) || 12;
 const ARRIVAL_EPSILON_M = 2;
+
+// Distance still to fly if the drone kept going as planned: from `current`
+// through whichever destinations are left, then the return leg. Recomputed
+// every tick to decide whether the battery can still finish the job — see
+// the diversion check in advanceFlight().
+function remainingRouteMeters(flight, current) {
+  let total = 0;
+  let from = current;
+  for (let i = flight.targetIndex; i < flight.waypoints.length; i++) {
+    const wp = flight.waypoints[i];
+    total += haversineMeters(from, wp);
+    from = wp;
+  }
+  total += haversineMeters(from, flight.returnPoint);
+  return total;
+}
 
 // Fake flight backend: interpolates a drone's position toward its mission's
 // waypoints on a tick loop, draining battery and persisting/publishing
@@ -113,12 +130,15 @@ class SimulatedAdapter extends DroneAdapter {
     }
   }
 
-  async abortMission(droneId, reason) {
+  async abortMission(droneId, reason, reasonCode) {
     const flight = this.flights.get(droneId);
     this.flights.delete(droneId);
     await droneService.updateStatus(droneId, 'idle');
     if (flight && flight.missionId) {
-      await missionService.updateStatus(flight.missionId, 'aborted', { notes: reason || 'aborted_by_operator' });
+      await missionService.updateStatus(flight.missionId, 'aborted', {
+        notes: reason || 'Abortada por el operador.',
+        reasonCode: reasonCode || 'operator_abort',
+      });
     }
   }
 
@@ -128,7 +148,10 @@ class SimulatedAdapter extends DroneAdapter {
 
     const existing = this.flights.get(droneId);
     if (existing && existing.missionId) {
-      await missionService.updateStatus(existing.missionId, 'aborted', { notes: 'return_to_home' });
+      await missionService.updateStatus(existing.missionId, 'aborted', {
+        notes: 'Retorno a base solicitado manualmente.',
+        reasonCode: 'return_to_home_manual',
+      });
     }
 
     this.flights.set(droneId, {
@@ -146,7 +169,10 @@ class SimulatedAdapter extends DroneAdapter {
     this.flights.delete(droneId);
     await droneService.updateStatus(droneId, 'error');
     if (flight && flight.missionId) {
-      await missionService.updateStatus(flight.missionId, 'aborted', { notes: 'emergency_stop' });
+      await missionService.updateStatus(flight.missionId, 'aborted', {
+        notes: 'Parada de emergencia.',
+        reasonCode: 'emergency_stop',
+      });
     }
   }
 
@@ -166,6 +192,12 @@ class SimulatedAdapter extends DroneAdapter {
       this.flights.delete(droneId);
       return;
     }
+
+    // Airborne time toward the airframe's maintenance interval — counts for
+    // the whole time it's on this flight's clock, discharge holds included
+    // (a real drone hovers or stays armed while unloading, it doesn't shut
+    // down), not just while actually translating between points.
+    await droneService.incrementFlightSeconds(droneId, TICK_MS / 1000);
 
     // Holding at a delivery point to unload — position/altitude/heading
     // don't change, just wait out the timer (or drain out early into
@@ -188,7 +220,16 @@ class SimulatedAdapter extends DroneAdapter {
         });
         await droneService.updateStatus(droneId, 'error');
         if (flight.missionId) {
-          await missionService.updateStatus(flight.missionId, 'failed', { notes: 'battery_depleted' });
+          await missionService.updateStatus(flight.missionId, 'failed', {
+            notes: 'Batería agotada durante la descarga.',
+            reasonCode: 'battery_depleted',
+          });
+          await auditService.log({
+            action: 'system.battery_depleted',
+            entityType: 'mission',
+            entityId: flight.missionId,
+            detail: { droneId },
+          });
         }
         return;
       }
@@ -236,6 +277,30 @@ class SimulatedAdapter extends DroneAdapter {
     }
 
     const current = { lat: drone.lat, lon: drone.lon };
+
+    // Continuous low-battery safety check — the same autonomous-RTL behavior
+    // every real flight controller implements. If whatever's left of the
+    // route (remaining destinations, then the return leg) would eat into the
+    // battery reserve, divert to the return point now instead of continuing
+    // and running the battery down mid-route.
+    if (flight.phase === 'delivering' && !flight.divertedForBattery) {
+      const remainingM = remainingRouteMeters(flight, current);
+      const reservePct = settingsService.getSync('low_battery_reserve_pct');
+      const drainPctPerMin = settingsService.getSync('battery_drain_pct_per_min');
+      const usableBatteryPct = Math.max(0, Number(drone.battery_pct) - reservePct);
+      const availableM = (usableBatteryPct / drainPctPerMin) * 60 * flight.speedMps;
+      if (remainingM > availableM) {
+        flight.phase = 'returning';
+        flight.divertedForBattery = true;
+        await auditService.log({
+          action: 'system.low_battery_diversion',
+          entityType: 'mission',
+          entityId: flight.missionId,
+          detail: { droneId, batteryPct: Number(drone.battery_pct) },
+        });
+      }
+    }
+
     const target =
       flight.phase === 'returning'
         ? { seq: null, lat: flight.returnPoint.lat, lon: flight.returnPoint.lon, alt_m: 0 }
@@ -272,10 +337,19 @@ class SimulatedAdapter extends DroneAdapter {
       this.flights.delete(droneId);
     } else if (arrived && flight.homeOnly) {
       // Manual return-to-home recall (not tied to a mission's own return leg).
-      status = 'idle';
+      const dueForMaintenance = droneService.isMaintenanceDue(drone);
+      status = dueForMaintenance ? 'maintenance' : 'idle';
       speedMps = 0;
       this.flights.delete(droneId);
-      await droneService.updateStatus(droneId, 'idle');
+      await droneService.updateStatus(droneId, status);
+      if (dueForMaintenance) {
+        await auditService.log({
+          action: 'system.maintenance_due',
+          entityType: 'drone',
+          entityId: droneId,
+          detail: { totalFlightHours: Number(drone.total_flight_seconds) / 3600 },
+        });
+      }
     } else if (arrived && flight.phase === 'picking_up') {
       // Package loaded — proceed to the real destinations. Status stays
       // 'in_flight' throughout, same as the leg before and after this one.
@@ -301,11 +375,27 @@ class SimulatedAdapter extends DroneAdapter {
       speedMps = 0;
       await droneService.updateStatus(droneId, 'unloading');
     } else if (arrived && flight.phase === 'returning') {
-      status = 'idle';
+      const dueForMaintenance = droneService.isMaintenanceDue(drone);
+      status = dueForMaintenance ? 'maintenance' : 'idle';
       speedMps = 0;
       this.flights.delete(droneId);
-      await missionService.updateStatus(flight.missionId, 'completed');
-      await droneService.updateStatus(droneId, 'idle');
+      if (flight.divertedForBattery) {
+        await missionService.updateStatus(flight.missionId, 'failed', {
+          notes: 'Retorno automático por batería baja antes de completar todos los destinos.',
+          reasonCode: 'low_battery_diversion',
+        });
+      } else {
+        await missionService.updateStatus(flight.missionId, 'completed');
+      }
+      await droneService.updateStatus(droneId, status);
+      if (dueForMaintenance) {
+        await auditService.log({
+          action: 'system.maintenance_due',
+          entityType: 'drone',
+          entityId: droneId,
+          detail: { totalFlightHours: Number(drone.total_flight_seconds) / 3600 },
+        });
+      }
     }
 
     await droneService.updatePosition(droneId, {
@@ -320,7 +410,16 @@ class SimulatedAdapter extends DroneAdapter {
     if (batteryDepleted) {
       await droneService.updateStatus(droneId, 'error');
       if (flight.missionId) {
-        await missionService.updateStatus(flight.missionId, 'failed', { notes: 'battery_depleted' });
+        await missionService.updateStatus(flight.missionId, 'failed', {
+          notes: 'Batería agotada en vuelo.',
+          reasonCode: 'battery_depleted',
+        });
+        await auditService.log({
+          action: 'system.battery_depleted',
+          entityType: 'mission',
+          entityId: flight.missionId,
+          detail: { droneId },
+        });
       }
     }
 

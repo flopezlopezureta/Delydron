@@ -58,6 +58,7 @@ export function DeliveriesPage() {
                 <th className="px-4 py-2">Destino</th>
                 <th className="px-4 py-2">Ubicación</th>
                 <th className="px-4 py-2">Paquete</th>
+                <th className="px-4 py-2">Código de entrega</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -75,11 +76,12 @@ export function DeliveriesPage() {
                     {d.lat.toFixed(5)}, {d.lon.toFixed(5)}
                   </td>
                   <td className="px-4 py-2">{d.package_desc ?? '—'}</td>
+                  <td className="px-4 py-2 font-mono text-xs text-slate-500">{d.confirmation_code ?? '—'}</td>
                 </tr>
               ))}
               {deliveries.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="px-4 py-4 text-center text-slate-400">
+                  <td colSpan={7} className="px-4 py-4 text-center text-slate-400">
                     Todavía no hay despachos entregados.
                   </td>
                 </tr>

@@ -70,6 +70,12 @@ ALTER TABLE drones ADD CONSTRAINT drones_status_check
   CHECK (status IN ('offline','idle','armed','in_flight','unloading','returning','charging','maintenance','error'));
 CREATE INDEX IF NOT EXISTS idx_drones_status ON drones(status);
 
+-- Airworthiness tracking: cumulative flight time drives an automatic
+-- maintenance flag (see SimulatedAdapter) instead of relying on someone
+-- remembering to schedule it.
+ALTER TABLE drones ADD COLUMN IF NOT EXISTS total_flight_seconds BIGINT NOT NULL DEFAULT 0;
+ALTER TABLE drones ADD COLUMN IF NOT EXISTS maintenance_interval_hours NUMERIC(8,2) NOT NULL DEFAULT 100;
+
 -- MISSIONS ----------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS missions (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -105,6 +111,23 @@ ALTER TABLE missions ADD COLUMN IF NOT EXISTS pickup_base_id UUID REFERENCES bas
 -- implicit behavior); set = return to this base instead.
 ALTER TABLE missions ADD COLUMN IF NOT EXISTS return_base_id UUID REFERENCES bases(id) ON DELETE SET NULL;
 
+-- Public, unguessable token so a client can watch their own delivery without
+-- an account (see routes/track.js) — the DEFAULT means every existing and
+-- future mission gets one for free, no application code required.
+ALTER TABLE missions ADD COLUMN IF NOT EXISTS tracking_token VARCHAR(40)
+  UNIQUE DEFAULT encode(gen_random_bytes(20), 'hex');
+CREATE INDEX IF NOT EXISTS idx_missions_tracking_token ON missions(tracking_token);
+
+-- Structured cause for an aborted/failed mission — `notes` stays as free-text
+-- detail, this is the fixed code a safety/compliance report can group by.
+ALTER TABLE missions ADD COLUMN IF NOT EXISTS abort_reason_code VARCHAR(30);
+ALTER TABLE missions DROP CONSTRAINT IF EXISTS missions_abort_reason_code_check;
+ALTER TABLE missions ADD CONSTRAINT missions_abort_reason_code_check
+  CHECK (abort_reason_code IS NULL OR abort_reason_code IN (
+    'operator_abort', 'emergency_stop', 'return_to_home_manual', 'low_battery_diversion',
+    'battery_depleted', 'hardware_fault', 'payload_fault', 'weather', 'airspace_conflict', 'other'
+  ));
+
 -- TELEMETRY_LOG (time-series trail) ---------------------------------------
 CREATE TABLE IF NOT EXISTS telemetry_log (
   id BIGSERIAL PRIMARY KEY,
@@ -135,3 +158,23 @@ CREATE TABLE IF NOT EXISTS deliveries (
 );
 CREATE INDEX IF NOT EXISTS idx_deliveries_mission ON deliveries(mission_id);
 CREATE INDEX IF NOT EXISTS idx_deliveries_delivered_at ON deliveries(delivered_at DESC);
+
+-- Short, shareable receipt code — the proof of delivery a client can quote
+-- back if they dispute or ask about an entrega. DEFAULT generates it for
+-- every row automatically, same trick as missions.tracking_token above.
+ALTER TABLE deliveries ADD COLUMN IF NOT EXISTS confirmation_code VARCHAR(12)
+  UNIQUE DEFAULT upper(substr(encode(gen_random_bytes(6), 'hex'), 1, 8));
+
+-- AUDIT_LOG (who did what, to which mission/drone/user, and when) ---------
+CREATE TABLE IF NOT EXISTS audit_log (
+  id BIGSERIAL PRIMARY KEY,
+  actor_user_id UUID REFERENCES users(id) ON DELETE SET NULL,
+  actor_email VARCHAR(255),
+  action VARCHAR(50) NOT NULL,
+  entity_type VARCHAR(30) NOT NULL,
+  entity_id UUID,
+  detail JSONB,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_audit_log_created_at ON audit_log(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_audit_log_entity ON audit_log(entity_type, entity_id);

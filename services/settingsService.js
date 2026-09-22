@@ -8,6 +8,11 @@ const DEFAULTS = {
   default_altitude_m: 60,
   discharge_seconds: 5,
   battery_drain_pct_per_min: 1.5,
+  // % of battery that must always stay in reserve. A dispatch is rejected if
+  // the planned round trip would eat into it, and a drone already flying
+  // diverts straight to its return point the moment the remaining route
+  // would too — see the range checks in missionService and SimulatedAdapter.
+  low_battery_reserve_pct: 20,
 };
 
 // In-memory mirror of the settings table — advanceFlight() runs once per

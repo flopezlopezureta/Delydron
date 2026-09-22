@@ -2,7 +2,9 @@ import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { abortMission, deleteMission, dispatchMission, updateMission } from '../../api/missions';
 import { MissionStatusBadge } from './MissionStatusBadge';
-import type { Base, Drone, Mission, MissionStatusPayload } from '../../types';
+import { AbortMissionDialog } from './AbortMissionDialog';
+import { ShareTrackingLinkDialog } from './ShareTrackingLinkDialog';
+import type { AbortReasonCode, Base, Drone, Mission, MissionStatusPayload } from '../../types';
 
 interface MissionTableProps {
   missions: Mission[];
@@ -15,6 +17,8 @@ interface MissionTableProps {
 export function MissionTable({ missions, drones, bases, liveStatusById, onChanged }: MissionTableProps) {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [cancelTarget, setCancelTarget] = useState<Mission | null>(null);
+  const [shareTarget, setShareTarget] = useState<Mission | null>(null);
 
   const idleDrones = useMemo(() => drones.filter((d) => d.status === 'idle'), [drones]);
 
@@ -43,10 +47,11 @@ export function MissionTable({ missions, drones, bases, liveStatusById, onChange
     }
   }
 
-  function handleCancel(m: Mission) {
-    const reason = window.prompt('Motivo de la cancelación (opcional):');
-    if (reason === null) return; // backed out of the prompt itself, not just left it blank
-    run(m.id, () => abortMission(m.id, reason || undefined));
+  function handleConfirmCancel(reasonCode: AbortReasonCode, reason: string) {
+    const target = cancelTarget;
+    if (!target) return;
+    setCancelTarget(null);
+    run(target.id, () => abortMission(target.id, reasonCode, reason || undefined));
   }
 
   if (missions.length === 0) {
@@ -150,10 +155,18 @@ export function MissionTable({ missions, drones, bases, liveStatusById, onChange
                     {canCancel && (
                       <button
                         disabled={busy}
-                        onClick={() => handleCancel(m)}
+                        onClick={() => setCancelTarget(m)}
                         className="rounded bg-amber-600 px-2 py-1 text-xs font-medium text-white hover:bg-amber-500 disabled:opacity-50"
                       >
                         Cancelar
+                      </button>
+                    )}
+                    {m.tracking_token && (
+                      <button
+                        onClick={() => setShareTarget(m)}
+                        className="rounded border border-slate-300 px-2 py-1 text-xs text-slate-600 hover:bg-slate-50"
+                      >
+                        Link de seguimiento
                       </button>
                     )}
                     {canDelete && (
@@ -180,6 +193,20 @@ export function MissionTable({ missions, drones, bases, liveStatusById, onChange
           })}
         </tbody>
       </table>
+      {cancelTarget && (
+        <AbortMissionDialog
+          missionCode={cancelTarget.code}
+          onConfirm={handleConfirmCancel}
+          onCancel={() => setCancelTarget(null)}
+        />
+      )}
+      {shareTarget && shareTarget.tracking_token && (
+        <ShareTrackingLinkDialog
+          missionCode={shareTarget.code}
+          url={`${window.location.origin}/t/${shareTarget.tracking_token}`}
+          onClose={() => setShareTarget(null)}
+        />
+      )}
     </div>
   );
 }

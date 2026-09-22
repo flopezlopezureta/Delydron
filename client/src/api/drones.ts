@@ -9,6 +9,7 @@ export interface DroneInput {
   homeLon: number;
   maxSpeedMps?: number;
   maxRangeKm?: number;
+  maintenanceIntervalHours?: number;
 }
 
 export function listDrones(): Promise<Drone[]> {
@@ -37,6 +38,7 @@ export interface UpdateDroneInput {
   max_range_km?: number;
   home_lat?: number;
   home_lon?: number;
+  maintenance_interval_hours?: number;
 }
 
 export function updateDrone(id: string, input: UpdateDroneInput): Promise<Drone> {

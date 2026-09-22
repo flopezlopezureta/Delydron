@@ -55,6 +55,8 @@ export interface Drone {
   max_speed_mps: string | number;
   max_range_km: string | number;
   last_seen_at: string | null;
+  total_flight_seconds: string | number;
+  maintenance_interval_hours: string | number;
 }
 
 export interface Base {
@@ -88,6 +90,34 @@ export interface Waypoint {
   hold_s?: number;
 }
 
+// Mirrors missions_abort_reason_code_check in schema.sql / ABORT_REASON_CODES
+// in utils/validation.js — kept in sync by hand across the three, they
+// change together rarely enough that a shared-codegen step isn't worth it.
+export type AbortReasonCode =
+  | 'operator_abort'
+  | 'emergency_stop'
+  | 'return_to_home_manual'
+  | 'low_battery_diversion'
+  | 'battery_depleted'
+  | 'hardware_fault'
+  | 'payload_fault'
+  | 'weather'
+  | 'airspace_conflict'
+  | 'other';
+
+export const ABORT_REASON_LABELS: Record<AbortReasonCode, string> = {
+  operator_abort: 'Cancelada por el operador',
+  emergency_stop: 'Parada de emergencia',
+  return_to_home_manual: 'Retorno a base manual',
+  low_battery_diversion: 'Retorno automático por batería baja',
+  battery_depleted: 'Batería agotada en vuelo',
+  hardware_fault: 'Falla de hardware',
+  payload_fault: 'Falla en la carga/compuerta',
+  weather: 'Condiciones climáticas',
+  airspace_conflict: 'Conflicto de espacio aéreo',
+  other: 'Otro motivo',
+};
+
 export interface Mission {
   id: string;
   code: string | null;
@@ -101,6 +131,8 @@ export interface Mission {
   dropoff_address: string | null;
   return_base_id: string | null;
   current_waypoint_seq: number;
+  tracking_token: string | null;
+  abort_reason_code: AbortReasonCode | null;
   created_at: string;
   started_at: string | null;
   completed_at: string | null;
@@ -140,6 +172,55 @@ export interface Delivery {
   lon: number;
   package_desc: string | null;
   delivered_at: string;
+  confirmation_code: string | null;
   mission_code?: string | null;
   drone_name?: string | null;
+}
+
+// Shape of GET /api/track/:token — the public, unauthenticated view of a
+// mission. Deliberately narrower than `Mission`/`Delivery`: no drone id,
+// serial, internal ids, or anything about other missions.
+export interface PublicTrackingDelivery {
+  waypointSeq: number;
+  confirmationCode: string | null;
+  deliveredAt: string;
+  lat: number;
+  lon: number;
+  packageDesc: string | null;
+}
+
+export interface PublicTrackingLive {
+  lat: number;
+  lon: number;
+  headingDeg: number;
+  batteryPct: number;
+  status: DroneStatus;
+}
+
+export interface PublicTracking {
+  code: string | null;
+  status: MissionStatus;
+  abortReasonCode: AbortReasonCode | null;
+  payloadDesc: string | null;
+  pickupAddress: string | null;
+  dropoffAddress: string | null;
+  waypoints: { seq: number; lat: number; lon: number; packageDesc: string | null }[];
+  currentWaypointSeq: number;
+  droneName: string | null;
+  live: PublicTrackingLive | null;
+  deliveries: PublicTrackingDelivery[];
+  createdAt: string;
+  startedAt: string | null;
+  completedAt: string | null;
+}
+
+export interface AuditLogEntry {
+  id: number;
+  actor_user_id: string | null;
+  actor_email: string | null;
+  action: string;
+  entity_type: string;
+  entity_id: string | null;
+  detail: Record<string, unknown> | null;
+  created_at: string;
 }

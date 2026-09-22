@@ -1,10 +1,11 @@
 const express = require('express');
 const missionService = require('../services/missionService');
 const droneService = require('../services/droneService');
+const auditService = require('../services/auditService');
 const { getAdapter } = require('../services/adapterRegistry');
 const { auth, requireRole } = require('../middleware/auth');
 const { asyncHandler } = require('../utils/asyncHandler');
-const { validateWaypoints } = require('../utils/validation');
+const { validateWaypoints, validateReasonCode } = require('../utils/validation');
 
 const router = express.Router();
 // technician and auxiliary don't dispatch — technician's scope is drones'
@@ -92,7 +93,20 @@ router.post(
     if (!drone) return res.status(400).json({ error: 'drone_not_found' });
     if (drone.status !== 'idle') return res.status(409).json({ error: 'drone_not_idle' });
 
+    const infeasibleReason = await missionService.checkDispatchFeasible(mission, drone);
+    if (infeasibleReason) {
+      return res.status(409).json({ error: 'insufficient_range', message: infeasibleReason });
+    }
+
     await getAdapter().startMission(mission.drone_id, mission);
+    await auditService.log({
+      actorUserId: req.user.sub,
+      actorEmail: req.user.email,
+      action: 'mission.dispatch',
+      entityType: 'mission',
+      entityId: mission.id,
+      detail: { droneId: mission.drone_id, missionCode: mission.code },
+    });
     res.json(await missionService.getById(req.params.id));
   })
 );
@@ -111,12 +125,24 @@ router.post(
     if (!['draft', 'scheduled', 'assigned', 'in_progress'].includes(mission.status)) {
       return res.status(409).json({ error: 'invalid_status' });
     }
-
-    if (mission.status === 'in_progress' && mission.drone_id) {
-      await getAdapter().abortMission(mission.drone_id, req.body?.reason);
-    } else {
-      await missionService.updateStatus(mission.id, 'aborted', { notes: req.body?.reason });
+    if (validateReasonCode(req.body?.reasonCode)) {
+      return res.status(400).json({ error: 'invalid_reason_code' });
     }
+
+    const reasonCode = req.body?.reasonCode || 'operator_abort';
+    if (mission.status === 'in_progress' && mission.drone_id) {
+      await getAdapter().abortMission(mission.drone_id, req.body?.reason, reasonCode);
+    } else {
+      await missionService.updateStatus(mission.id, 'aborted', { notes: req.body?.reason, reasonCode });
+    }
+    await auditService.log({
+      actorUserId: req.user.sub,
+      actorEmail: req.user.email,
+      action: 'mission.abort',
+      entityType: 'mission',
+      entityId: mission.id,
+      detail: { reasonCode, reason: req.body?.reason },
+    });
     res.json(await missionService.getById(req.params.id));
   })
 );

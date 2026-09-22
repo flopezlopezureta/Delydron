@@ -33,6 +33,11 @@ export function NavBar() {
               Usuarios
             </NavLink>
           )}
+          {(user?.role === 'admin' || user?.role === 'super_admin') && (
+            <NavLink to="/audit" className={linkClass}>
+              Auditoría
+            </NavLink>
+          )}
         </nav>
       </div>
       {user && (

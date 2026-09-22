@@ -10,6 +10,17 @@ async function record({ missionId, droneId, waypointSeq, lat, lon, packageDesc }
   return rows[0];
 }
 
+// Scoped lookup for the public tracking page — unlike list()'s "most recent
+// N across the whole fleet", this can't miss an older mission's deliveries
+// just because busier ones pushed it out of a global recency window.
+async function listByMission(missionId) {
+  const { rows } = await db.query(
+    `SELECT * FROM deliveries WHERE mission_id = $1 ORDER BY delivered_at ASC`,
+    [missionId]
+  );
+  return rows;
+}
+
 async function list(limit = 200) {
   const { rows } = await db.query(
     `SELECT
@@ -26,4 +37,4 @@ async function list(limit = 200) {
   return rows;
 }
 
-module.exports = { record, list };
+module.exports = { record, list, listByMission };

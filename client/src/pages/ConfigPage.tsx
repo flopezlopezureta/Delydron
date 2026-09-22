@@ -33,6 +33,7 @@ export function ConfigPage() {
   const [model, setModel] = useState('');
   const [maxSpeedMps, setMaxSpeedMps] = useState('');
   const [maxRangeKm, setMaxRangeKm] = useState('');
+  const [maintenanceIntervalHours, setMaintenanceIntervalHours] = useState('');
   const [homeBaseId, setHomeBaseId] = useState('');
   const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -53,6 +54,7 @@ export function ConfigPage() {
     setModel('');
     setMaxSpeedMps('');
     setMaxRangeKm('');
+    setMaintenanceIntervalHours('');
     setHomeBaseId('');
     setFormError(null);
     setEditingId(null);
@@ -66,6 +68,7 @@ export function ConfigPage() {
     setModel(d.model ?? '');
     setMaxSpeedMps(String(d.max_speed_mps));
     setMaxRangeKm(String(d.max_range_km));
+    setMaintenanceIntervalHours(String(d.maintenance_interval_hours));
     // Best-effort: preselect the base whose coordinates match the drone's
     // current home position, so editing doesn't look like it "forgot" it.
     // No match (e.g. it was set by geocoding an address) just leaves it
@@ -90,6 +93,7 @@ export function ConfigPage() {
           model: model || undefined,
           max_speed_mps: maxSpeedMps ? Number(maxSpeedMps) : undefined,
           max_range_km: maxRangeKm ? Number(maxRangeKm) : undefined,
+          maintenance_interval_hours: maintenanceIntervalHours ? Number(maintenanceIntervalHours) : undefined,
           // Only sent when a base is actually selected — leaving it on "sin
           // cambios" keeps whatever home position the drone already has.
           ...(base ? { home_lat: base.lat, home_lon: base.lon } : {}),
@@ -105,6 +109,7 @@ export function ConfigPage() {
           homeLon: base.lon,
           maxSpeedMps: maxSpeedMps ? Number(maxSpeedMps) : undefined,
           maxRangeKm: maxRangeKm ? Number(maxRangeKm) : undefined,
+          maintenanceIntervalHours: maintenanceIntervalHours ? Number(maintenanceIntervalHours) : undefined,
         });
       }
       resetForm();
@@ -307,6 +312,15 @@ export function ConfigPage() {
                 />
               </div>
             </div>
+            <label className="mb-1 block text-xs text-slate-600">Intervalo de mantención (horas de vuelo)</label>
+            <input
+              type="number"
+              min={1}
+              value={maintenanceIntervalHours}
+              onChange={(e) => setMaintenanceIntervalHours(e.target.value)}
+              placeholder="100"
+              className="mb-3 w-full rounded border border-slate-300 px-2 py-1.5 text-sm"
+            />
             <label className="mb-1 block text-xs text-slate-600">Base de origen</label>
             <select
               value={homeBaseId}
@@ -358,6 +372,7 @@ export function ConfigPage() {
                   <th className="px-4 py-2">Estado</th>
                   <th className="px-4 py-2">Velocidad</th>
                   <th className="px-4 py-2">Autonomía</th>
+                  <th className="px-4 py-2">Horas de vuelo</th>
                   <th className="px-4 py-2">Acciones</th>
                 </tr>
               </thead>
@@ -366,6 +381,8 @@ export function ConfigPage() {
                   const busy = busyId === d.id;
                   const canDelete = d.status === 'idle';
                   const canRecall = RECALLABLE_STATUSES.includes(d.status);
+                  const flightHours = Number(d.total_flight_seconds) / 3600;
+                  const maintenanceDue = flightHours >= Number(d.maintenance_interval_hours);
                   return (
                     <tr key={d.id}>
                       <td className="px-4 py-2 font-medium text-slate-800">{d.name}</td>
@@ -374,6 +391,14 @@ export function ConfigPage() {
                       <td className="px-4 py-2 uppercase text-slate-500">{d.status}</td>
                       <td className="px-4 py-2 text-slate-600">{Number(d.max_speed_mps)} m/s</td>
                       <td className="px-4 py-2 text-slate-600">{Number(d.max_range_km)} km</td>
+                      <td className="px-4 py-2 text-slate-600">
+                        {flightHours.toFixed(1)} / {Number(d.maintenance_interval_hours).toFixed(0)} h
+                        {maintenanceDue && (
+                          <span className="ml-1.5 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">
+                            Mantención
+                          </span>
+                        )}
+                      </td>
                       <td className="px-4 py-2">
                         <div className="flex flex-wrap gap-2">
                           {canEditDrones && (
@@ -419,7 +444,7 @@ export function ConfigPage() {
                 })}
                 {drones.length === 0 && (
                   <tr>
-                    <td colSpan={7} className="px-4 py-4 text-center text-slate-400">
+                    <td colSpan={8} className="px-4 py-4 text-center text-slate-400">
                       No hay drones todavía.
                     </td>
                   </tr>

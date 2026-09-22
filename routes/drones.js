@@ -1,5 +1,6 @@
 const express = require('express');
 const droneService = require('../services/droneService');
+const auditService = require('../services/auditService');
 const { getAdapter } = require('../services/adapterRegistry');
 const { auth, requireRole } = require('../middleware/auth');
 const { asyncHandler } = require('../utils/asyncHandler');
@@ -70,6 +71,13 @@ router.post(
     const drone = await droneService.getById(req.params.id);
     if (!drone) return res.status(404).json({ error: 'not_found' });
     await getAdapter().returnToHome(req.params.id);
+    await auditService.log({
+      actorUserId: req.user.sub,
+      actorEmail: req.user.email,
+      action: 'drone.return_to_home',
+      entityType: 'drone',
+      entityId: drone.id,
+    });
     res.json(await droneService.getById(req.params.id));
   })
 );
@@ -82,6 +90,13 @@ router.post(
     const drone = await droneService.getById(req.params.id);
     if (!drone) return res.status(404).json({ error: 'not_found' });
     await getAdapter().emergencyStop(req.params.id);
+    await auditService.log({
+      actorUserId: req.user.sub,
+      actorEmail: req.user.email,
+      action: 'drone.emergency_stop',
+      entityType: 'drone',
+      entityId: drone.id,
+    });
     res.json(await droneService.getById(req.params.id));
   })
 );

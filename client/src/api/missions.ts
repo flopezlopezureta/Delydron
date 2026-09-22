@@ -1,5 +1,5 @@
 import { apiFetch } from './client';
-import type { Mission, Waypoint } from '../types';
+import type { AbortReasonCode, Mission, Waypoint } from '../types';
 
 export interface MissionInput {
   droneId?: string | null;
@@ -44,9 +44,9 @@ export function dispatchMission(id: string): Promise<Mission> {
   return apiFetch<Mission>(`/api/missions/${id}/dispatch`, { method: 'POST' });
 }
 
-export function abortMission(id: string, reason?: string): Promise<Mission> {
+export function abortMission(id: string, reasonCode: AbortReasonCode, reason?: string): Promise<Mission> {
   return apiFetch<Mission>(`/api/missions/${id}/abort`, {
     method: 'POST',
-    body: JSON.stringify({ reason }),
+    body: JSON.stringify({ reasonCode, reason }),
   });
 }

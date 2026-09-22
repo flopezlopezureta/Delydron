@@ -30,4 +30,28 @@ function validateWaypoints(waypoints) {
   return null;
 }
 
-module.exports = { validateWaypoints, MAX_DESTINATIONS_PER_MISSION };
+// Mirrors the missions_abort_reason_code_check constraint in schema.sql —
+// kept as one source of truth in JS so the API can reject a bad code with a
+// clean 400 instead of a raw Postgres constraint-violation 500.
+const ABORT_REASON_CODES = [
+  'operator_abort',
+  'emergency_stop',
+  'return_to_home_manual',
+  'low_battery_diversion',
+  'battery_depleted',
+  'hardware_fault',
+  'payload_fault',
+  'weather',
+  'airspace_conflict',
+  'other',
+];
+
+// Returns an error message string, or null if the code is missing or valid
+// (missing is fine — callers default it, e.g. to 'operator_abort').
+function validateReasonCode(code) {
+  if (code === undefined || code === null || code === '') return null;
+  if (!ABORT_REASON_CODES.includes(code)) return 'invalid_reason_code';
+  return null;
+}
+
+module.exports = { validateWaypoints, MAX_DESTINATIONS_PER_MISSION, ABORT_REASON_CODES, validateReasonCode };

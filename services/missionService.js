@@ -1,8 +1,19 @@
 const db = require('../db');
 const { publishMissionStatus } = require('./telemetryBus');
+const { haversineMeters } = require('../utils/geo');
+const settingsService = require('./settingsService');
+const baseService = require('./baseService');
 
 async function getById(id) {
   const { rows } = await db.query('SELECT * FROM missions WHERE id = $1', [id]);
+  return rows[0] || null;
+}
+
+// Powers the public tracking page (routes/track.js) — the token is random
+// and unrelated to the sequential id, so knowing one mission's link doesn't
+// help guess another's.
+async function getByTrackingToken(token) {
+  const { rows } = await db.query('SELECT * FROM missions WHERE tracking_token = $1', [token]);
   return rows[0] || null;
 }
 
@@ -166,7 +177,7 @@ async function updateCurrentWaypoint(id, seq) {
   );
 }
 
-async function updateStatus(id, status, { notes } = {}) {
+async function updateStatus(id, status, { notes, reasonCode } = {}) {
   const setStarted = status === 'in_progress';
   const setCompleted = ['completed', 'failed', 'aborted'].includes(status);
 
@@ -174,12 +185,13 @@ async function updateStatus(id, status, { notes } = {}) {
     `UPDATE missions
      SET status = $2,
          notes = COALESCE($3, notes),
+         abort_reason_code = COALESCE($6, abort_reason_code),
          started_at = CASE WHEN $4 THEN now() ELSE started_at END,
          completed_at = CASE WHEN $5 THEN now() ELSE completed_at END,
          updated_at = now()
      WHERE id = $1
      RETURNING *`,
-    [id, status, notes || null, setStarted, setCompleted]
+    [id, status, notes || null, setStarted, setCompleted, reasonCode || null]
   );
 
   const mission = rows[0] || null;
@@ -189,12 +201,70 @@ async function updateStatus(id, status, { notes } = {}) {
   return mission;
 }
 
+// Round-trip distance the mission would actually fly: an optional pickup
+// leg, then each destination in order, then the return leg — the same path
+// SimulatedAdapter flies, computed ahead of dispatch so a route the battery
+// can't realistically finish never leaves the ground.
+async function plannedRouteMeters(mission, drone) {
+  const start = { lat: drone.lat ?? drone.home_lat, lon: drone.lon ?? drone.home_lon };
+  let from = start;
+  let total = 0;
+
+  if (mission.pickup_base_id) {
+    const base = await baseService.getById(mission.pickup_base_id);
+    if (base) {
+      total += haversineMeters(from, base);
+      from = { lat: base.lat, lon: base.lon };
+    }
+  }
+
+  const waypoints = [...(mission.waypoints || [])].sort((a, b) => a.seq - b.seq);
+  for (const wp of waypoints) {
+    total += haversineMeters(from, wp);
+    from = wp;
+  }
+
+  let returnPoint = { lat: drone.home_lat, lon: drone.home_lon };
+  if (mission.return_base_id) {
+    const base = await baseService.getById(mission.return_base_id);
+    if (base) returnPoint = { lat: base.lat, lon: base.lon };
+  }
+  total += haversineMeters(from, returnPoint);
+
+  return total;
+}
+
+// Pre-dispatch safety gate: refuses to launch a mission whose planned round
+// trip exceeds either the drone's rated range or what its current battery
+// can cover while still holding back the configured reserve. Returns null
+// when the route is feasible, or a human-readable reason when it isn't.
+async function checkDispatchFeasible(mission, drone) {
+  const routeM = await plannedRouteMeters(mission, drone);
+  const maxRangeM = Number(drone.max_range_km) * 1000;
+  if (routeM > maxRangeM) {
+    return `La ruta planificada (${(routeM / 1000).toFixed(1)} km) supera la autonomía máxima del dron (${Number(drone.max_range_km).toFixed(1)} km).`;
+  }
+
+  const reservePct = settingsService.getSync('low_battery_reserve_pct');
+  const drainPctPerMin = settingsService.getSync('battery_drain_pct_per_min');
+  const speedMps = Number(drone.max_speed_mps) || 12;
+  const usableBatteryPct = Math.max(0, Number(drone.battery_pct) - reservePct);
+  const availableM = (usableBatteryPct / drainPctPerMin) * 60 * speedMps;
+  if (routeM > availableM) {
+    return `La batería actual (${Number(drone.battery_pct).toFixed(0)}%) no alcanza para completar la ruta (${(routeM / 1000).toFixed(1)} km) y volver dejando ${reservePct}% de reserva.`;
+  }
+
+  return null;
+}
+
 module.exports = {
   getById,
+  getByTrackingToken,
   getInProgress,
   existsForBase,
   updateCurrentWaypoint,
   updateStatus,
+  checkDispatchFeasible,
   list,
   create,
   update,

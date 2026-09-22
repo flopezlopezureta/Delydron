@@ -10,18 +10,27 @@ async function getById(id) {
   return rows[0] || null;
 }
 
-async function create({ name, serialNumber, model, homeLat, homeLon, maxSpeedMps, maxRangeKm }) {
+async function create({ name, serialNumber, model, homeLat, homeLon, maxSpeedMps, maxRangeKm, maintenanceIntervalHours }) {
   const { rows } = await db.query(
-    `INSERT INTO drones (name, serial_number, model, status, lat, lon, home_lat, home_lon, max_speed_mps, max_range_km, last_seen_at)
-     VALUES ($1, $2, $3, 'idle', $4, $5, $4, $5, COALESCE($6, 15.0), COALESCE($7, 10.0), now())
+    `INSERT INTO drones (name, serial_number, model, status, lat, lon, home_lat, home_lon, max_speed_mps, max_range_km, maintenance_interval_hours, last_seen_at)
+     VALUES ($1, $2, $3, 'idle', $4, $5, $4, $5, COALESCE($6, 15.0), COALESCE($7, 10.0), COALESCE($8, 100.0), now())
      RETURNING *`,
-    [name, serialNumber || null, model || null, homeLat, homeLon, maxSpeedMps, maxRangeKm]
+    [name, serialNumber || null, model || null, homeLat, homeLon, maxSpeedMps, maxRangeKm, maintenanceIntervalHours]
   );
   return rows[0];
 }
 
 async function update(id, fields) {
-  const allowed = ['name', 'serial_number', 'model', 'max_speed_mps', 'max_range_km', 'home_lat', 'home_lon'];
+  const allowed = [
+    'name',
+    'serial_number',
+    'model',
+    'max_speed_mps',
+    'max_range_km',
+    'home_lat',
+    'home_lon',
+    'maintenance_interval_hours',
+  ];
   const sets = [];
   const values = [];
   let i = 1;
@@ -58,6 +67,20 @@ async function updateStatus(id, status) {
   return rows[0] || null;
 }
 
+// Accrues airborne time toward the airframe's maintenance interval —
+// SimulatedAdapter calls this once per tick for every drone with an active
+// flight, real adapters would do the same from actual flight-controller time.
+async function incrementFlightSeconds(id, seconds) {
+  await db.query(
+    `UPDATE drones SET total_flight_seconds = total_flight_seconds + $2, updated_at = now() WHERE id = $1`,
+    [id, seconds]
+  );
+}
+
+function isMaintenanceDue(drone) {
+  return Number(drone.total_flight_seconds) / 3600 >= Number(drone.maintenance_interval_hours);
+}
+
 // Only removes an idle drone — returns false (no-op) instead of silently
 // deleting one that's mid-mission, so the caller can tell the difference
 // between "gone" and "still flying, didn't touch it".
@@ -66,4 +89,14 @@ async function remove(id) {
   return result.rowCount > 0;
 }
 
-module.exports = { list, getById, create, update, updatePosition, updateStatus, remove };
+module.exports = {
+  list,
+  getById,
+  create,
+  update,
+  updatePosition,
+  updateStatus,
+  incrementFlightSeconds,
+  isMaintenanceDue,
+  remove,
+};
