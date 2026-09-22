@@ -30,7 +30,7 @@ export function BasesPage() {
     try {
       const result = await geocodeAddress(address);
       if (!result) {
-        setFormError('No se encontró esa dirección — probá con más detalle o marcá el punto directo en el mapa.');
+        setFormError('No se encontró esa dirección — prueba con más detalle o marca el punto directo en el mapa.');
         return;
       }
       setPoint({ lat: result.lat, lon: result.lon });
@@ -158,7 +158,7 @@ export function BasesPage() {
             <p className="mb-3 text-xs text-slate-500">
               {point
                 ? `Ubicación: ${point.lat.toFixed(5)}, ${point.lon.toFixed(5)}`
-                : 'Escribí la dirección y tocá "Buscar", o hacé clic directo en el mapa.'}
+                : 'Escribe la dirección y toca "Buscar", o haz clic directo en el mapa.'}
             </p>
             {formError && <div className="mb-3 text-sm text-red-600">{formError}</div>}
             <div className="mt-auto flex gap-2">

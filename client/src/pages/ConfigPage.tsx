@@ -100,7 +100,7 @@ export function ConfigPage() {
         });
       } else {
         const base = bases.find((b) => b.id === homeBaseId);
-        if (!base) return setFormError('Elegí la base de origen del dron.');
+        if (!base) return setFormError('Elige la base de origen del dron.');
         await createDrone({
           name,
           serialNumber: serialNumber || undefined,
@@ -154,7 +154,7 @@ export function ConfigPage() {
   }
 
   async function handleEmergencyStop(id: string) {
-    if (!window.confirm('¿Confirmás la parada de emergencia? El dron se detendrá donde esté.')) return;
+    if (!window.confirm('¿Confirmas la parada de emergencia? El dron se detendrá donde esté.')) return;
     setBusyId(id);
     setRowError(null);
     try {
@@ -327,7 +327,7 @@ export function ConfigPage() {
               onChange={(e) => setHomeBaseId(e.target.value)}
               className="mb-3 w-full rounded border border-slate-300 px-2 py-1.5 text-sm"
             >
-              <option value="">{editingId ? 'Sin cambios' : 'Elegí una base...'}</option>
+              <option value="">{editingId ? 'Sin cambios' : 'Elige una base...'}</option>
               {bases.map((b) => (
                 <option key={b.id} value={b.id}>
                   {b.name}
@@ -336,7 +336,7 @@ export function ConfigPage() {
             </select>
             {bases.length === 0 && (
               <p className="mb-3 text-xs text-amber-600">
-                Todavía no hay bases creadas — andá a "Bases" y creá una primero.
+                Todavía no hay bases creadas — anda a "Bases" y crea una primero.
               </p>
             )}
             {formError && <div className="mb-3 text-sm text-red-600">{formError}</div>}

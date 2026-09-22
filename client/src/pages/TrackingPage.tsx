@@ -63,7 +63,7 @@ export function TrackingPage() {
       <div className="flex min-h-screen items-center justify-center bg-slate-50 p-4">
         <div className="max-w-sm text-center">
           <h1 className="mb-2 text-lg font-semibold text-slate-800">Delydron</h1>
-          <p className="text-sm text-slate-500">No encontramos esta misión. Verificá que el link esté completo.</p>
+          <p className="text-sm text-slate-500">No encontramos esta misión. Verifica que el link esté completo.</p>
         </div>
       </div>
     );

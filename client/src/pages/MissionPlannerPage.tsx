@@ -125,7 +125,7 @@ export function MissionPlannerPage() {
     try {
       const result = await geocodeAddress(dropoffAddress);
       if (!result) {
-        setError('No se encontró esa dirección — probá con más detalle o marcá el punto directo en el mapa.');
+        setError('No se encontró esa dirección — prueba con más detalle o marca el punto directo en el mapa.');
         return;
       }
       addWaypoint(result.lat, result.lon);
@@ -183,9 +183,9 @@ export function MissionPlannerPage() {
 
   const title = editId ? 'Editar misión' : repeatFrom ? 'Repetir misión' : 'Planificador de misión';
   const subtitle = editId
-    ? 'Ajustá lo que haga falta y guardá los cambios.'
+    ? 'Ajusta lo que haga falta y guarda los cambios.'
     : repeatFrom
-      ? 'Misma ruta y carga que la original — revisá o ajustá antes de asignar un dron.'
+      ? 'Misma ruta y carga que la original — revisa o ajusta antes de asignar un dron.'
       : `Haz clic en el mapa para agregar destinos en orden (hasta ${MAX_DESTINATIONS_PER_MISSION}, uno por compuerta de descarga).`;
 
   return (
@@ -281,7 +281,7 @@ export function MissionPlannerPage() {
             </button>
           </div>
           <p className="mt-1 text-xs text-slate-400">
-            Escribí la dirección y hacé clic en "Marcar" para ubicarla como destino, o marcá el punto directo en el
+            Escribe la dirección y haz clic en "Marcar" para ubicarla como destino, o marca el punto directo en el
             mapa.
           </p>
         </div>

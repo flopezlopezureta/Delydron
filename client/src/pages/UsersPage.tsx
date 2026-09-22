@@ -261,7 +261,7 @@ export function UsersPage() {
                           <button
                             disabled={busy || isSelf}
                             onClick={() => handleToggleActive(u)}
-                            title={isSelf ? 'No podés desactivarte a vos mismo.' : undefined}
+                            title={isSelf ? 'No puedes desactivarte a ti mismo.' : undefined}
                             className="rounded border border-slate-300 px-2 py-1 text-xs text-slate-600 hover:bg-slate-50 disabled:opacity-50"
                           >
                             {u.is_active ? 'Desactivar' : 'Reactivar'}
