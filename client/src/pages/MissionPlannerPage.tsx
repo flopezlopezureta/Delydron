@@ -3,10 +3,11 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useDrones } from '../hooks/useDrones';
 import { useBases } from '../hooks/useBases';
 import { createMission, getMission, updateMission } from '../api/missions';
-import { geocodeAddress } from '../api/geocoding';
+import type { AddressSuggestion } from '../api/geocoding';
 import { getSettings } from '../api/settings';
 import { WaypointPlannerMap } from '../components/map/WaypointPlannerMap';
 import { WaypointList } from '../components/missions/WaypointList';
+import { AddressAutocomplete } from '../components/missions/AddressAutocomplete';
 import { MAX_DESTINATIONS_PER_MISSION, type Waypoint } from '../types';
 
 const DEFAULT_CENTER: [number, number] = [-33.4489, -70.6693];
@@ -32,7 +33,6 @@ export function MissionPlannerPage() {
   const [waypoints, setWaypoints] = useState<Waypoint[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const [searchingAddress, setSearchingAddress] = useState(false);
   const [defaultAltM, setDefaultAltM] = useState(FALLBACK_ALT_M);
   // Blocks the first render (map included) until the source mission (to
   // edit or repeat) has loaded, so the map mounts already centered on its
@@ -74,19 +74,22 @@ export function MissionPlannerPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [drones.length, waypoints]);
 
-  function addWaypoint(lat: number, lon: number) {
+  function addWaypoint(lat: number, lon: number, address?: string) {
     setError(null);
     setWaypoints((prev) => {
       if (prev.length >= MAX_DESTINATIONS_PER_MISSION) {
         setError(`Un dron tiene ${MAX_DESTINATIONS_PER_MISSION} compuertas de descarga — no se pueden agregar más de ${MAX_DESTINATIONS_PER_MISSION} destinos.`);
         return prev;
       }
-      return [...prev, { seq: prev.length + 1, lat, lon, alt_m: defaultAltM }];
+      return [...prev, { seq: prev.length + 1, lat, lon, alt_m: defaultAltM, address }];
     });
   }
 
   function moveWaypoint(index: number, lat: number, lon: number) {
-    setWaypoints((prev) => prev.map((wp, i) => (i === index ? { ...wp, lat, lon } : wp)));
+    // The pin moved, so any address label resolved for the old spot no
+    // longer describes where it actually is — drop it rather than show a
+    // now-inaccurate address next to the real (dragged) coordinates.
+    setWaypoints((prev) => prev.map((wp, i) => (i === index ? { ...wp, lat, lon, address: undefined } : wp)));
   }
 
   function changeAltitude(index: number, altM: number) {
@@ -115,25 +118,13 @@ export function MissionPlannerPage() {
     });
   }
 
-  // The address field is just a free-text label — it doesn't move anything
-  // on its own. This looks it up and drops a real waypoint there, so typing
-  // an address is actually enough instead of also having to click the map.
-  async function handleMarkDropoff() {
-    if (!dropoffAddress.trim()) return;
+  // Adds the chosen suggestion as a real waypoint and clears the search box,
+  // ready for the next destination — the address itself was only ever a way
+  // to find a point, not a field that stays attached to the form.
+  function handleSelectDropoffSuggestion(suggestion: AddressSuggestion) {
     setError(null);
-    setSearchingAddress(true);
-    try {
-      const result = await geocodeAddress(dropoffAddress);
-      if (!result) {
-        setError('No se encontró esa dirección — prueba con más detalle o marca el punto directo en el mapa.');
-        return;
-      }
-      addWaypoint(result.lat, result.lon);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'No se pudo buscar la dirección.');
-    } finally {
-      setSearchingAddress(false);
-    }
+    addWaypoint(suggestion.lat, suggestion.lon, suggestion.placeName);
+    setDropoffAddress('');
   }
 
   function handlePickupBaseChange(id: string) {
@@ -257,32 +248,15 @@ export function MissionPlannerPage() {
         </div>
 
         <div className="mb-3">
-          <label className="mb-1 block text-xs text-slate-600">Dirección de entrega</label>
-          <div className="flex gap-1">
-            <input
-              value={dropoffAddress}
-              onChange={(e) => setDropoffAddress(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  e.preventDefault();
-                  handleMarkDropoff();
-                }
-              }}
-              placeholder="Ej: Los Cerezos 5799, Peñalolén"
-              className="w-full rounded border border-slate-300 px-2 py-1.5 text-sm"
-            />
-            <button
-              type="button"
-              onClick={handleMarkDropoff}
-              disabled={searchingAddress || !dropoffAddress.trim()}
-              className="shrink-0 rounded border border-slate-300 px-2 py-1.5 text-xs text-slate-600 hover:bg-slate-50 disabled:opacity-50"
-            >
-              {searchingAddress ? '...' : 'Marcar'}
-            </button>
-          </div>
+          <label className="mb-1 block text-xs text-slate-600">Agregar destino por dirección</label>
+          <AddressAutocomplete
+            value={dropoffAddress}
+            onChange={setDropoffAddress}
+            onSelect={handleSelectDropoffSuggestion}
+            placeholder="Ej: Los Cerezos 5799, Peñalolén"
+          />
           <p className="mt-1 text-xs text-slate-400">
-            Escribe la dirección y haz clic en "Marcar" para ubicarla como destino, o marca el punto directo en el
-            mapa.
+            Elige una sugerencia de la lista para agregarla como destino, o marca el punto directo en el mapa.
           </p>
         </div>
 

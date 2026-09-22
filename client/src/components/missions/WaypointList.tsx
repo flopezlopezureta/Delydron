@@ -41,8 +41,16 @@ export function WaypointList({ waypoints, onAltitudeChange, onPackageChange, onR
                 ▼
               </button>
             </div>
-            <span className="flex-1 font-mono text-xs text-slate-600">
-              {wp.lat.toFixed(5)}, {wp.lon.toFixed(5)}
+            <span className="min-w-0 flex-1 text-xs text-slate-600">
+              {wp.address ? (
+                <span className="block truncate" title={wp.address}>
+                  {wp.address}
+                </span>
+              ) : (
+                <span className="font-mono">
+                  {wp.lat.toFixed(5)}, {wp.lon.toFixed(5)}
+                </span>
+              )}
             </span>
             <label className="flex items-center gap-1 text-xs text-slate-500">
               alt(m)

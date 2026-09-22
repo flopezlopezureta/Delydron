@@ -43,13 +43,20 @@ export function TrackingMiniMap({ tracking }: TrackingMiniMapProps) {
 
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
-    const center = tracking.live
-      ? ([tracking.live.lat, tracking.live.lon] as [number, number])
-      : tracking.waypoints[0]
-        ? ([tracking.waypoints[0].lat, tracking.waypoints[0].lon] as [number, number])
-        : DEFAULT_CENTER;
 
-    const map = L.map(containerRef.current, { zoomControl: false }).setView(center, 14);
+    // Waypoints are fixed for the life of a mission, so this only needs to
+    // run once at mount — frame all of them (plus the drone, if already
+    // flying) instead of just the first, or a multi-destination mission
+    // with far-apart stops would silently crop everything past #1.
+    const points: [number, number][] = tracking.waypoints.map((wp) => [wp.lat, wp.lon]);
+    if (tracking.live) points.push([tracking.live.lat, tracking.live.lon]);
+
+    const map = L.map(containerRef.current, { zoomControl: false });
+    if (points.length > 1) {
+      map.fitBounds(L.latLngBounds(points), { padding: [30, 30], maxZoom: 16 });
+    } else {
+      map.setView(points[0] ?? DEFAULT_CENTER, 14);
+    }
     L.control.zoom({ position: 'bottomright' }).addTo(map);
     L.tileLayer('https://api.maptiler.com/maps/streets-v4/{z}/{x}/{y}.png?key=zy6sHDBhSRsVvSPe3MCL', {
       attribution:
@@ -87,7 +94,7 @@ export function TrackingMiniMap({ tracking }: TrackingMiniMapProps) {
           iconAnchor: [10, 10],
         }),
       }).addTo(map);
-      marker.bindTooltip(wp.packageDesc || `Destino #${wp.seq}`);
+      marker.bindTooltip(wp.packageDesc || wp.address || `Destino #${wp.seq}`);
       return marker;
     });
 

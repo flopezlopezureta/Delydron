@@ -75,6 +75,7 @@ export function WaypointPlannerMap({ center, waypoints, onAddWaypoint, onMoveWay
 
     waypoints.forEach((wp, index) => {
       const marker = L.marker([wp.lat, wp.lon], { icon: numberedIcon(wp.seq), draggable: true }).addTo(map);
+      marker.bindTooltip(wp.address || `${wp.lat.toFixed(5)}, ${wp.lon.toFixed(5)}`);
       marker.on('dragend', () => {
         const pos = marker.getLatLng();
         onMoveRef.current(index, pos.lat, pos.lng);

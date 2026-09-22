@@ -86,6 +86,10 @@ export interface Waypoint {
   lon: number;
   alt_m: number;
   package_desc?: string;
+  // Resolved label from the address search (see AddressAutocomplete) — only
+  // trustworthy as long as the pin hasn't moved since, so moveWaypoint()
+  // clears it on drag rather than let it go stale.
+  address?: string;
   action?: string;
   hold_s?: number;
 }
@@ -204,7 +208,7 @@ export interface PublicTracking {
   payloadDesc: string | null;
   pickupAddress: string | null;
   dropoffAddress: string | null;
-  waypoints: { seq: number; lat: number; lon: number; packageDesc: string | null }[];
+  waypoints: { seq: number; lat: number; lon: number; packageDesc: string | null; address: string | null }[];
   currentWaypointSeq: number;
   droneName: string | null;
   live: PublicTrackingLive | null;

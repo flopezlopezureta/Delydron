@@ -53,6 +53,7 @@ router.get(
         lat: wp.lat,
         lon: wp.lon,
         packageDesc: wp.package_desc || null,
+        address: wp.address || null,
       })),
       currentWaypointSeq: mission.current_waypoint_seq,
       droneName: drone ? drone.name : null,

@@ -135,17 +135,25 @@ export function TrackingPage() {
             <p className="text-sm text-slate-400">Todavía no hay entregas confirmadas.</p>
           ) : (
             <ul className="divide-y divide-slate-100">
-              {tracking.deliveries.map((d) => (
-                <li key={d.confirmationCode ?? `${d.waypointSeq}-${d.deliveredAt}`} className="py-2 text-sm">
-                  <div className="flex items-center justify-between">
-                    <span className="text-slate-700">{d.packageDesc || `Destino #${d.waypointSeq}`}</span>
-                    <span className="text-xs text-slate-400">{new Date(d.deliveredAt).toLocaleString('es-CL')}</span>
-                  </div>
-                  {d.confirmationCode && (
-                    <div className="mt-0.5 font-mono text-xs text-slate-400">Código: {d.confirmationCode}</div>
-                  )}
-                </li>
-              ))}
+              {tracking.deliveries.map((d) => {
+                const waypoint = tracking.waypoints.find((wp) => wp.seq === d.waypointSeq);
+                return (
+                  <li key={d.confirmationCode ?? `${d.waypointSeq}-${d.deliveredAt}`} className="py-2 text-sm">
+                    <div className="flex items-center justify-between">
+                      <span className="text-slate-700">
+                        {d.packageDesc || waypoint?.address || `Destino #${d.waypointSeq}`}
+                      </span>
+                      <span className="text-xs text-slate-400">{new Date(d.deliveredAt).toLocaleString('es-CL')}</span>
+                    </div>
+                    {d.packageDesc && waypoint?.address && (
+                      <div className="text-xs text-slate-400">{waypoint.address}</div>
+                    )}
+                    {d.confirmationCode && (
+                      <div className="mt-0.5 font-mono text-xs text-slate-400">Código: {d.confirmationCode}</div>
+                    )}
+                  </li>
+                );
+              })}
             </ul>
           )}
         </div>
