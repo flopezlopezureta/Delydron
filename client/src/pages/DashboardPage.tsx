@@ -1,11 +1,14 @@
+import { useEffect, useState } from 'react';
 import { useDrones } from '../hooks/useDrones';
 import { useBases } from '../hooks/useBases';
 import { useMissions } from '../hooks/useMissions';
 import { useNoFlyZones } from '../hooks/useNoFlyZones';
 import { useFleetTelemetry } from '../hooks/useFleetTelemetry';
+import { getSettings, type Settings } from '../api/settings';
 import { LiveMap } from '../components/map/LiveMap';
 import { TelemetryHud } from '../components/map/TelemetryHud';
 import { MissionSummaryBar } from '../components/missions/MissionSummaryBar';
+import { WeatherStrip } from '../components/dashboard/WeatherStrip';
 
 export function DashboardPage() {
   const { drones, loading, error } = useDrones();
@@ -13,6 +16,11 @@ export function DashboardPage() {
   const { missions } = useMissions();
   const { zones: noFlyZones } = useNoFlyZones();
   const { telemetryByDrone, liveDeliveries } = useFleetTelemetry();
+  const [settings, setSettings] = useState<Settings | null>(null);
+
+  useEffect(() => {
+    getSettings().then(setSettings).catch(() => {});
+  }, []);
 
   if (loading) {
     return <div className="flex h-full items-center justify-center text-gray-500">Cargando flota...</div>;
@@ -34,6 +42,13 @@ export function DashboardPage() {
       />
       <TelemetryHud drones={drones} telemetryByDrone={telemetryByDrone} missions={missions} />
       <MissionSummaryBar missions={missions} />
+      {settings && (
+        <WeatherStrip
+          bases={bases}
+          maxWindKmh={settings.max_wind_kmh}
+          maxPrecipitationMm={settings.max_precipitation_mm}
+        />
+      )}
     </div>
   );
 }

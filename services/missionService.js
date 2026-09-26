@@ -4,6 +4,7 @@ const { haversineMeters, distanceToSegmentMeters } = require('../utils/geo');
 const settingsService = require('./settingsService');
 const baseService = require('./baseService');
 const noFlyZoneService = require('./noFlyZoneService');
+const weatherService = require('./weatherService');
 
 async function getById(id) {
   const { rows } = await db.query('SELECT * FROM missions WHERE id = $1', [id]);
@@ -299,7 +300,14 @@ async function checkDispatchFeasible(mission, drone) {
     return `La batería actual (${Number(drone.battery_pct).toFixed(0)}%) no alcanza para completar la ruta (${(routeM / 1000).toFixed(1)} km) y volver dejando ${reservePct}% de reserva.`;
   }
 
-  return checkLegsAgainstNoFlyZones(legs);
+  const zoneReason = await checkLegsAgainstNoFlyZones(legs);
+  if (zoneReason) return zoneReason;
+
+  // Checked at the drone's current position (its takeoff point), not
+  // averaged across the whole route — weather is time-varying, so this is
+  // a go/no-go read at the moment of launch, not something worth checking
+  // back at mission-creation time the way the range/geofence checks are.
+  return weatherService.checkWeatherFeasible(drone.lat ?? drone.home_lat, drone.lon ?? drone.home_lon);
 }
 
 module.exports = {

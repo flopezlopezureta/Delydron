@@ -13,6 +13,9 @@ const DEFAULTS = {
   // diverts straight to its return point the moment the remaining route
   // would too — see the range checks in missionService and SimulatedAdapter.
   low_battery_reserve_pct: 20,
+  // Weather ceiling for dispatch — see weatherService.checkWeatherFeasible().
+  max_wind_kmh: 30,
+  max_precipitation_mm: 0.5,
 };
 
 // In-memory mirror of the settings table — advanceFlight() runs once per

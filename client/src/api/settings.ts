@@ -4,6 +4,9 @@ export interface Settings {
   default_altitude_m: number;
   discharge_seconds: number;
   battery_drain_pct_per_min: number;
+  low_battery_reserve_pct: number;
+  max_wind_kmh: number;
+  max_precipitation_mm: number;
 }
 
 export function getSettings(): Promise<Settings> {

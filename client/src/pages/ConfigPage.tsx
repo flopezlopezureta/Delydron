@@ -228,6 +228,41 @@ export function ConfigPage() {
                 className="w-full rounded border border-slate-300 px-2 py-1.5 text-sm disabled:bg-slate-50 disabled:text-slate-500"
               />
             </div>
+            <div>
+              <label className="mb-1 block text-xs text-slate-600">Reserva mínima de batería (%)</label>
+              <input
+                type="number"
+                min={0}
+                max={90}
+                disabled={!isAdmin}
+                value={settings.low_battery_reserve_pct}
+                onChange={(e) => updateSettingField('low_battery_reserve_pct', Number(e.target.value))}
+                className="w-full rounded border border-slate-300 px-2 py-1.5 text-sm disabled:bg-slate-50 disabled:text-slate-500"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs text-slate-600">Viento máximo para despachar (km/h)</label>
+              <input
+                type="number"
+                min={0}
+                disabled={!isAdmin}
+                value={settings.max_wind_kmh}
+                onChange={(e) => updateSettingField('max_wind_kmh', Number(e.target.value))}
+                className="w-full rounded border border-slate-300 px-2 py-1.5 text-sm disabled:bg-slate-50 disabled:text-slate-500"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs text-slate-600">Precipitación máxima para despachar (mm)</label>
+              <input
+                type="number"
+                min={0}
+                step={0.1}
+                disabled={!isAdmin}
+                value={settings.max_precipitation_mm}
+                onChange={(e) => updateSettingField('max_precipitation_mm', Number(e.target.value))}
+                className="w-full rounded border border-slate-300 px-2 py-1.5 text-sm disabled:bg-slate-50 disabled:text-slate-500"
+              />
+            </div>
           </div>
         )}
         {isAdmin ? (
