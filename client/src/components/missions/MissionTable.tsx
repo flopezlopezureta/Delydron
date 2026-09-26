@@ -186,6 +186,16 @@ export function MissionTable({ missions, drones, bases, liveStatusById, onChange
                         Repetir
                       </Link>
                     )}
+                    {canRepeat && (
+                      <Link
+                        to={`/missions/${m.id}/certificate`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="rounded border border-slate-300 px-2 py-1 text-xs text-slate-600 hover:bg-slate-50"
+                      >
+                        Certificado
+                      </Link>
+                    )}
                   </div>
                 </td>
               </tr>

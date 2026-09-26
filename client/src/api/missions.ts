@@ -1,5 +1,5 @@
 import { apiFetch } from './client';
-import type { AbortReasonCode, Mission, Waypoint } from '../types';
+import type { AbortReasonCode, Mission, MissionCertificate, Waypoint } from '../types';
 
 export interface MissionInput {
   droneId?: string | null;
@@ -49,4 +49,8 @@ export function abortMission(id: string, reasonCode: AbortReasonCode, reason?: s
     method: 'POST',
     body: JSON.stringify({ reasonCode, reason }),
   });
+}
+
+export function getMissionCertificate(id: string): Promise<MissionCertificate> {
+  return apiFetch<MissionCertificate>(`/api/missions/${id}/certificate`);
 }

@@ -9,6 +9,7 @@ import { LiveMap } from '../components/map/LiveMap';
 import { TelemetryHud } from '../components/map/TelemetryHud';
 import { MissionSummaryBar } from '../components/missions/MissionSummaryBar';
 import { WeatherStrip } from '../components/dashboard/WeatherStrip';
+import { FleetCapacityBar } from '../components/dashboard/FleetCapacityBar';
 
 export function DashboardPage() {
   const { drones, loading, error } = useDrones();
@@ -42,6 +43,7 @@ export function DashboardPage() {
       />
       <TelemetryHud drones={drones} telemetryByDrone={telemetryByDrone} missions={missions} />
       <MissionSummaryBar missions={missions} />
+      <FleetCapacityBar drones={drones} />
       {settings && (
         <WeatherStrip
           bases={bases}

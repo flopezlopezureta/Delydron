@@ -1,6 +1,6 @@
 import type { MissionStatus } from '../../types';
 
-const STYLES: Record<MissionStatus, string> = {
+export const MISSION_STATUS_STYLES: Record<MissionStatus, string> = {
   draft: 'bg-slate-100 text-slate-600',
   scheduled: 'bg-sky-100 text-sky-700',
   assigned: 'bg-indigo-100 text-indigo-700',
@@ -10,7 +10,7 @@ const STYLES: Record<MissionStatus, string> = {
   failed: 'bg-red-100 text-red-700',
 };
 
-const LABELS: Record<MissionStatus, string> = {
+export const MISSION_STATUS_LABELS: Record<MissionStatus, string> = {
   draft: 'Borrador',
   scheduled: 'Programada',
   assigned: 'Asignada',
@@ -22,8 +22,8 @@ const LABELS: Record<MissionStatus, string> = {
 
 export function MissionStatusBadge({ status }: { status: MissionStatus }) {
   return (
-    <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${STYLES[status]}`}>
-      {LABELS[status]}
+    <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${MISSION_STATUS_STYLES[status]}`}>
+      {MISSION_STATUS_LABELS[status]}
     </span>
   );
 }

@@ -2,6 +2,8 @@ const express = require('express');
 const missionService = require('../services/missionService');
 const droneService = require('../services/droneService');
 const auditService = require('../services/auditService');
+const deliveryService = require('../services/deliveryService');
+const baseService = require('../services/baseService');
 const { getAdapter } = require('../services/adapterRegistry');
 const { auth, requireRole } = require('../middleware/auth');
 const { asyncHandler } = require('../utils/asyncHandler');
@@ -152,6 +154,69 @@ router.post(
       detail: { reasonCode, reason: req.body?.reason },
     });
     res.json(await missionService.getById(req.params.id));
+  })
+);
+
+// Consolidated record of a finished mission — the "prove this delivery
+// happened correctly" document a client or the DGAC might ask for. Read
+// access only, open to any authenticated role (same as GET /:id); nothing
+// here is more sensitive than what that endpoint already exposes, this
+// just assembles it into one exportable/printable shape plus the mission's
+// own slice of the audit trail.
+router.get(
+  '/:id/certificate',
+  auth,
+  asyncHandler(async (req, res) => {
+    const mission = await missionService.getById(req.params.id);
+    if (!mission) return res.status(404).json({ error: 'not_found' });
+
+    const [drone, deliveries, auditEntries, pickupBase, returnBase] = await Promise.all([
+      mission.drone_id ? droneService.getById(mission.drone_id) : null,
+      deliveryService.listByMission(mission.id),
+      auditService.list({ entityType: 'mission', entityId: mission.id, limit: 100 }),
+      mission.pickup_base_id ? baseService.getById(mission.pickup_base_id) : null,
+      mission.return_base_id ? baseService.getById(mission.return_base_id) : null,
+    ]);
+
+    res.json({
+      code: mission.code,
+      status: mission.status,
+      priority: mission.priority,
+      payloadDesc: mission.payload_desc,
+      pickupAddress: mission.pickup_address,
+      dropoffAddress: mission.dropoff_address,
+      pickupBaseName: pickupBase ? pickupBase.name : null,
+      returnBaseName: returnBase ? returnBase.name : null,
+      droneName: drone ? drone.name : null,
+      droneSerialNumber: drone ? drone.serial_number : null,
+      droneModel: drone ? drone.model : null,
+      waypoints: (mission.waypoints || []).map((wp) => ({
+        seq: wp.seq,
+        lat: wp.lat,
+        lon: wp.lon,
+        address: wp.address || null,
+        packageDesc: wp.package_desc || null,
+      })),
+      deliveries: deliveries.map((d) => ({
+        waypointSeq: d.waypoint_seq,
+        confirmationCode: d.confirmation_code,
+        deliveredAt: d.delivered_at,
+        lat: d.lat,
+        lon: d.lon,
+        packageDesc: d.package_desc,
+      })),
+      abortReasonCode: mission.abort_reason_code,
+      notes: mission.notes,
+      auditEntries: auditEntries.map((a) => ({
+        action: a.action,
+        actorEmail: a.actor_email,
+        createdAt: a.created_at,
+        detail: a.detail,
+      })),
+      createdAt: mission.created_at,
+      startedAt: mission.started_at,
+      completedAt: mission.completed_at,
+    });
   })
 );
 

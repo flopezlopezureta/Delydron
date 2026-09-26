@@ -229,6 +229,35 @@ export interface PublicTracking {
   completedAt: string | null;
 }
 
+export interface MissionCertificate {
+  code: string | null;
+  status: MissionStatus;
+  priority: number;
+  payloadDesc: string | null;
+  pickupAddress: string | null;
+  dropoffAddress: string | null;
+  pickupBaseName: string | null;
+  returnBaseName: string | null;
+  droneName: string | null;
+  droneSerialNumber: string | null;
+  droneModel: string | null;
+  waypoints: { seq: number; lat: number; lon: number; address: string | null; packageDesc: string | null }[];
+  deliveries: {
+    waypointSeq: number;
+    confirmationCode: string | null;
+    deliveredAt: string;
+    lat: number;
+    lon: number;
+    packageDesc: string | null;
+  }[];
+  abortReasonCode: AbortReasonCode | null;
+  notes: string | null;
+  auditEntries: { action: string; actorEmail: string | null; createdAt: string; detail: Record<string, unknown> | null }[];
+  createdAt: string;
+  startedAt: string | null;
+  completedAt: string | null;
+}
+
 export interface AuditLogEntry {
   id: number;
   actor_user_id: string | null;

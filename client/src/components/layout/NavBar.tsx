@@ -41,6 +41,11 @@ export function NavBar() {
               Auditoría
             </NavLink>
           )}
+          {(user?.role === 'admin' || user?.role === 'super_admin' || user?.role === 'technician') && (
+            <NavLink to="/analytics" className={linkClass}>
+              Analítica
+            </NavLink>
+          )}
         </nav>
       </div>
       {user && (

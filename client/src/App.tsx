@@ -12,6 +12,8 @@ import { DeliveriesPage } from './pages/DeliveriesPage';
 import { ConfigPage } from './pages/ConfigPage';
 import { UsersPage } from './pages/UsersPage';
 import { AuditLogPage } from './pages/AuditLogPage';
+import { AnalyticsPage } from './pages/AnalyticsPage';
+import { MissionCertificatePage } from './pages/MissionCertificatePage';
 import { TrackingPage } from './pages/TrackingPage';
 
 function AppShell() {
@@ -50,6 +52,8 @@ export default function App() {
             <Route path="config" element={<ConfigPage />} />
             <Route path="users" element={<UsersPage />} />
             <Route path="audit" element={<AuditLogPage />} />
+            <Route path="analytics" element={<AnalyticsPage />} />
+            <Route path="missions/:id/certificate" element={<MissionCertificatePage />} />
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
