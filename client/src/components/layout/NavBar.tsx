@@ -5,6 +5,12 @@ import { ROLE_LABELS } from '../../types';
 const linkClass = ({ isActive }: { isActive: boolean }) =>
   `rounded px-3 py-1 text-sm ${isActive ? 'bg-slate-700 text-white' : 'text-slate-300 hover:bg-slate-800'}`;
 
+// Baked in at Docker build time (see Dockerfile) — MAJOR.MINOR bumped by
+// hand for real milestones, PATCH is the commit count so every deploy gets
+// a new number with no manual step. Falls back to "dev" locally, where
+// that build step never runs.
+const APP_VERSION = import.meta.env.VITE_APP_VERSION || 'dev';
+
 export function NavBar() {
   const { user, logout } = useAuth();
 
@@ -52,6 +58,9 @@ export function NavBar() {
         <div className="flex items-center gap-3 text-sm">
           <span className="text-slate-300">
             {user.fullName} · {ROLE_LABELS[user.role]}
+          </span>
+          <span className="text-xs text-slate-500" title="Versión de la app">
+            v{APP_VERSION}
           </span>
           <button
             onClick={logout}

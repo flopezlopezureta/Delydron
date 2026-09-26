@@ -4,6 +4,7 @@ client/dist/
 dist/
 .env
 client/.env
+client/.env.production
 *.log
 *.tsbuildinfo
 .DS_Store
