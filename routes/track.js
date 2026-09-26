@@ -38,6 +38,7 @@ router.get(
             headingDeg: Number(drone.heading_deg) || 0,
             batteryPct: Number(drone.battery_pct),
             status: drone.status,
+            etaSeconds: await missionService.estimateEtaSeconds(mission, drone),
           }
         : null;
 

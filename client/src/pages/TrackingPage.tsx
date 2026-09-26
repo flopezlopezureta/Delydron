@@ -16,6 +16,14 @@ const STATUS_LABELS: Record<string, string> = {
   failed: 'No se pudo completar',
 };
 
+// "en ~4 min" reads better to a customer than a raw mm:ss countdown, and
+// avoids implying second-level precision this estimate doesn't actually have.
+function formatEta(etaSeconds: number): string {
+  if (etaSeconds < 60) return 'menos de 1 min';
+  const minutes = Math.round(etaSeconds / 60);
+  return `~${minutes} min`;
+}
+
 const STATUS_COLORS: Record<string, string> = {
   draft: 'bg-slate-100 text-slate-700',
   scheduled: 'bg-slate-100 text-slate-700',
@@ -62,7 +70,7 @@ export function TrackingPage() {
     return (
       <div className="flex min-h-screen items-center justify-center bg-slate-50 p-4">
         <div className="max-w-sm text-center">
-          <h1 className="mb-2 text-lg font-semibold text-slate-800">Delydron</h1>
+          <h1 className="mb-2 text-lg font-semibold text-slate-800">Delydrone</h1>
           <p className="text-sm text-slate-500">No encontramos esta misión. Verifica que el link esté completo.</p>
         </div>
       </div>
@@ -84,7 +92,7 @@ export function TrackingPage() {
     <div className="min-h-screen bg-slate-50 p-4">
       <div className="mx-auto max-w-lg">
         <header className="mb-4 text-center">
-          <h1 className="text-lg font-semibold text-slate-800">Delydron</h1>
+          <h1 className="text-lg font-semibold text-slate-800">Delydrone</h1>
           <p className="text-xs text-slate-400">Seguimiento de envío por dron</p>
         </header>
 
@@ -117,7 +125,13 @@ export function TrackingPage() {
         </div>
 
         {tracking.live && (
-          <div className="mb-4 grid grid-cols-2 gap-2 rounded-lg border border-slate-200 bg-white p-4 text-center text-sm">
+          <div className="mb-4 grid grid-cols-3 gap-2 rounded-lg border border-slate-200 bg-white p-4 text-center text-sm">
+            <div>
+              <div className="text-xs text-slate-400">Llegada estimada</div>
+              <div className="font-semibold text-slate-700">
+                {tracking.live.etaSeconds != null ? formatEta(tracking.live.etaSeconds) : '—'}
+              </div>
+            </div>
             <div>
               <div className="text-xs text-slate-400">Batería</div>
               <div className="font-semibold text-slate-700">{tracking.live.batteryPct.toFixed(0)}%</div>

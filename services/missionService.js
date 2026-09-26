@@ -19,6 +19,32 @@ async function getByTrackingToken(token) {
   return rows[0] || null;
 }
 
+// ETA to whichever point the drone is currently heading toward — the next
+// undelivered destination, or the return point once all of them are done.
+// Uses the drone's rated speed rather than its instantaneous current speed
+// (which reads 0 mid-arrival or mid-discharge) — same "nominal speed"
+// convention SimulatedAdapter's own live telemetry ETA already uses, so the
+// public tracking page and the internal live map never disagree.
+async function estimateEtaSeconds(mission, drone) {
+  if (drone.lat == null || drone.lon == null) return null;
+  const current = { lat: drone.lat, lon: drone.lon };
+
+  const waypoints = [...(mission.waypoints || [])].sort((a, b) => a.seq - b.seq);
+  const next = waypoints.find((wp) => wp.seq > mission.current_waypoint_seq);
+
+  let target = { lat: drone.home_lat, lon: drone.home_lon };
+  if (next) {
+    target = { lat: next.lat, lon: next.lon };
+  } else if (mission.return_base_id) {
+    const base = await baseService.getById(mission.return_base_id);
+    if (base) target = { lat: base.lat, lon: base.lon };
+  }
+
+  const speedMps = Number(drone.max_speed_mps) || 12;
+  if (speedMps <= 0) return null;
+  return Math.round(haversineMeters(current, target) / speedMps);
+}
+
 // Only 'in_progress' missions were actually flying when the server went
 // down — 'assigned' just means a drone is picked but nobody has clicked
 // Dispatch yet, so it must NOT be auto-started on boot.
@@ -313,6 +339,7 @@ async function checkDispatchFeasible(mission, drone) {
 module.exports = {
   getById,
   getByTrackingToken,
+  estimateEtaSeconds,
   getInProgress,
   existsForBase,
   updateCurrentWaypoint,

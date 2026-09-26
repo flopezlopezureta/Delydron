@@ -209,6 +209,7 @@ export interface PublicTrackingLive {
   headingDeg: number;
   batteryPct: number;
   status: DroneStatus;
+  etaSeconds: number | null;
 }
 
 export interface PublicTracking {
