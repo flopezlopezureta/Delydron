@@ -263,6 +263,18 @@ export function ConfigPage() {
                 className="w-full rounded border border-slate-300 px-2 py-1.5 text-sm disabled:bg-slate-50 disabled:text-slate-500"
               />
             </div>
+            <div>
+              <label className="mb-1 block text-xs text-slate-600">Velocidad de carga (%/min)</label>
+              <input
+                type="number"
+                min={0}
+                step={0.1}
+                disabled={!isAdmin}
+                value={settings.battery_charge_pct_per_min}
+                onChange={(e) => updateSettingField('battery_charge_pct_per_min', Number(e.target.value))}
+                className="w-full rounded border border-slate-300 px-2 py-1.5 text-sm disabled:bg-slate-50 disabled:text-slate-500"
+              />
+            </div>
           </div>
         )}
         {isAdmin ? (

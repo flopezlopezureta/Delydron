@@ -16,6 +16,8 @@ const DEFAULTS = {
   // Weather ceiling for dispatch — see weatherService.checkWeatherFeasible().
   max_wind_kmh: 30,
   max_precipitation_mm: 0.5,
+  // How fast an idle drone recharges — see SimulatedAdapter.advanceCharging().
+  battery_charge_pct_per_min: 10,
 };
 
 // In-memory mirror of the settings table — advanceFlight() runs once per

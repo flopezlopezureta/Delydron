@@ -7,6 +7,7 @@ export interface Settings {
   low_battery_reserve_pct: number;
   max_wind_kmh: number;
   max_precipitation_mm: number;
+  battery_charge_pct_per_min: number;
 }
 
 export function getSettings(): Promise<Settings> {

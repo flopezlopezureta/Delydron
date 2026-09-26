@@ -181,8 +181,39 @@ class SimulatedAdapter extends DroneAdapter {
   }
 
   async tick() {
+    await this.advanceCharging();
     for (const [droneId, flight] of this.flights.entries()) {
       await this.advanceFlight(droneId, flight);
+    }
+  }
+
+  // Mirrors a real dock (DJI Dock auto-charges whatever's parked on it):
+  // no button to press, an idle drone below 100% just charges wherever it
+  // is. 'maintenance'/'error'/'offline' are deliberately excluded — those
+  // need a person to clear them, not a battery topping up on its own.
+  async advanceCharging() {
+    const chargeable = await droneService.listChargeable();
+    if (!chargeable.length) return;
+
+    const chargeRatePerMin = settingsService.getSync('battery_charge_pct_per_min');
+    for (const drone of chargeable) {
+      const nextBattery = Math.min(100, Number(drone.battery_pct) + (chargeRatePerMin * TICK_MS) / 60000);
+      const fullyCharged = nextBattery >= 100;
+
+      await droneService.updatePosition(drone.id, {
+        lat: drone.lat,
+        lon: drone.lon,
+        altitudeM: drone.altitude_m || 0,
+        headingDeg: drone.heading_deg || 0,
+        speedMps: 0,
+        batteryPct: nextBattery,
+      });
+
+      if (drone.status === 'idle') {
+        await droneService.updateStatus(drone.id, 'charging');
+      } else if (fullyCharged) {
+        await droneService.updateStatus(drone.id, 'idle');
+      }
     }
   }
 

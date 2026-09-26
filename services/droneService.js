@@ -81,6 +81,18 @@ function isMaintenanceDue(drone) {
   return Number(drone.total_flight_seconds) / 3600 >= Number(drone.maintenance_interval_hours);
 }
 
+// Every drone that could still gain charge on this tick — already
+// 'charging', or 'idle' and not yet full (about to become 'charging').
+// Excludes 'maintenance'/'error'/'offline': those need a person to clear
+// them first, a low battery shouldn't just quietly heal itself in the
+// background while a drone is flagged as out of service.
+async function listChargeable() {
+  const { rows } = await db.query(
+    `SELECT * FROM drones WHERE status IN ('idle', 'charging') AND battery_pct < 100`
+  );
+  return rows;
+}
+
 // Only removes an idle drone — returns false (no-op) instead of silently
 // deleting one that's mid-mission, so the caller can tell the difference
 // between "gone" and "still flying, didn't touch it".
@@ -98,5 +110,6 @@ module.exports = {
   updateStatus,
   incrementFlightSeconds,
   isMaintenanceDue,
+  listChargeable,
   remove,
 };
