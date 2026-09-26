@@ -3,6 +3,8 @@ import { useAuth } from '../hooks/useAuth';
 import { useNoFlyZones } from '../hooks/useNoFlyZones';
 import { createNoFlyZone, updateNoFlyZone, deleteNoFlyZone } from '../api/noFlyZones';
 import { NoFlyZonePickerMap } from '../components/noFlyZones/NoFlyZonePickerMap';
+import { AddressAutocomplete } from '../components/missions/AddressAutocomplete';
+import type { AddressSuggestion } from '../api/geocoding';
 import type { NoFlyZone } from '../types';
 
 const DEFAULT_CENTER: [number, number] = [-33.4489, -70.6693];
@@ -19,6 +21,7 @@ export function NoFlyZonesPage() {
   const [radiusM, setRadiusM] = useState(String(DEFAULT_RADIUS_M));
   const [notes, setNotes] = useState('');
   const [point, setPoint] = useState<{ lat: number; lon: number } | null>(null);
+  const [addressQuery, setAddressQuery] = useState('');
   const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -29,6 +32,7 @@ export function NoFlyZonesPage() {
     setRadiusM(String(DEFAULT_RADIUS_M));
     setNotes('');
     setPoint(null);
+    setAddressQuery('');
     setFormError(null);
     setEditingId(null);
     setShowForm(false);
@@ -40,8 +44,14 @@ export function NoFlyZonesPage() {
     setRadiusM(String(z.radius_m));
     setNotes(z.notes ?? '');
     setPoint({ lat: z.lat, lon: z.lon });
+    setAddressQuery('');
     setFormError(null);
     setShowForm(true);
+  }
+
+  function handleSelectAddress(suggestion: AddressSuggestion) {
+    setPoint({ lat: suggestion.lat, lon: suggestion.lon });
+    setAddressQuery('');
   }
 
   async function handleSubmit() {
@@ -132,6 +142,14 @@ export function NoFlyZonesPage() {
               placeholder="Ej: Aeropuerto Tobalaba"
               className="mb-3 w-full rounded border border-slate-300 px-2 py-1.5 text-sm"
             />
+            <label className="mb-1 block text-xs text-slate-600">Buscar dirección</label>
+            <AddressAutocomplete
+              value={addressQuery}
+              onChange={setAddressQuery}
+              onSelect={handleSelectAddress}
+              placeholder="Ej: Aeropuerto Arturo Merino Benítez"
+            />
+            <div className="mb-3" />
             <label className="mb-1 block text-xs text-slate-600">Radio (metros)</label>
             <input
               type="number"
@@ -149,7 +167,7 @@ export function NoFlyZonesPage() {
             <p className="mb-3 text-xs text-slate-500">
               {point
                 ? `Centro: ${point.lat.toFixed(5)}, ${point.lon.toFixed(5)}`
-                : 'Haz clic en el mapa para ubicar el centro.'}
+                : 'Busca una dirección o haz clic en el mapa para ubicar el centro.'}
             </p>
             {formError && <div className="mb-3 text-sm text-red-600">{formError}</div>}
             <div className="mt-auto flex gap-2">
