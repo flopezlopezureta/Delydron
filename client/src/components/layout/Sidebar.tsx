@@ -72,6 +72,7 @@ const ICONS: Record<string, ReactNode> = {
     />
   ),
   moon: <path strokeLinecap="round" strokeLinejoin="round" d="M20.8 14.3A8.3 8.3 0 019.7 3.2a8.3 8.3 0 1011.1 11.1z" />,
+  close: <path strokeLinecap="round" strokeLinejoin="round" d="M6 6l12 12M18 6L6 18" />,
 };
 
 function Icon({ name }: { name: keyof typeof ICONS }) {
@@ -140,7 +141,14 @@ const linkClass = ({ isActive }: { isActive: boolean }) =>
     isActive ? 'bg-brand text-white' : 'text-slate-300 hover:bg-slate-800 hover:text-white'
   }`;
 
-export function Sidebar() {
+interface SidebarProps {
+  // Drawer state on phone/tablet widths; on `lg:` and up the sidebar is
+  // permanently visible and these are effectively ignored (see className).
+  open: boolean;
+  onClose: () => void;
+}
+
+export function Sidebar({ open, onClose }: SidebarProps) {
   const { user, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
   // Counted server-side in Postgres and bumped once per boot (see
@@ -157,61 +165,83 @@ export function Sidebar() {
   }, []);
 
   return (
-    <aside className="flex h-full w-60 shrink-0 flex-col bg-slate-900">
-      <div className="border-b border-slate-800 px-4 py-4">
-        <Logo />
-      </div>
-
-      <nav className="flex-1 space-y-5 overflow-y-auto px-2.5 py-4">
-        {NAV_GROUPS.map((group) => {
-          const items = group.items.filter((item) => !item.roles || (user && item.roles.includes(user.role)));
-          if (items.length === 0) return null;
-          return (
-            <div key={group.label}>
-              <p className="mb-1.5 px-2.5 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                {group.label}
-              </p>
-              <div className="space-y-0.5">
-                {items.map((item) => (
-                  <NavLink key={item.to} to={item.to} end={item.end} className={linkClass}>
-                    <Icon name={item.icon} />
-                    {item.label}
-                  </NavLink>
-                ))}
-              </div>
-            </div>
-          );
-        })}
-      </nav>
-
-      {user && (
-        <div className="border-t border-slate-800 p-3">
-          <div className="mb-2 flex items-center justify-between px-1">
-            <div className="min-w-0">
-              <p className="truncate text-sm text-slate-200">{user.fullName}</p>
-              <p className="text-xs text-slate-500">{ROLE_LABELS[user.role]}</p>
-            </div>
-            <button
-              onClick={toggleTheme}
-              title={theme === 'dark' ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'}
-              className="shrink-0 rounded-md p-1.5 text-slate-400 hover:bg-slate-800 hover:text-white"
-            >
-              <Icon name={theme === 'dark' ? 'sun' : 'moon'} />
-            </button>
-          </div>
-          <div className="flex items-center justify-between px-1">
-            <span className="text-xs text-slate-600" title="Versión de la app">
-              v{appVersion}
-            </span>
-            <button
-              onClick={logout}
-              className="rounded-md bg-slate-800 px-3 py-1 text-xs font-medium text-slate-200 hover:bg-slate-700"
-            >
-              Salir
-            </button>
-          </div>
-        </div>
+    <>
+      {/* Backdrop — phone/tablet only, closes the drawer on outside tap. */}
+      {open && (
+        <div className="fixed inset-0 z-30 bg-slate-950/50 lg:hidden" onClick={onClose} aria-hidden="true" />
       )}
-    </aside>
+      <aside
+        className={`fixed inset-y-0 left-0 z-40 flex h-full w-60 shrink-0 flex-col bg-slate-900 transition-transform duration-200 ease-in-out lg:static lg:translate-x-0 ${
+          // `max-lg:` (not a bare `translate-x-*`) so this never has to fight
+          // `lg:translate-x-0` for the same property at the same breakpoint —
+          // two unprefixed utilities of equal specificity resolve by
+          // stylesheet emission order, not by which one "sounds" more
+          // specific, and that order is not something to depend on.
+          open ? 'max-lg:translate-x-0' : 'max-lg:-translate-x-full'
+        }`}
+      >
+        <div className="flex items-center justify-between border-b border-slate-800 px-4 py-4">
+          <Logo />
+          <button
+            onClick={onClose}
+            aria-label="Cerrar menú"
+            className="rounded-md p-1.5 text-slate-400 hover:bg-slate-800 hover:text-white lg:hidden"
+          >
+            <Icon name="close" />
+          </button>
+        </div>
+
+        <nav className="flex-1 space-y-5 overflow-y-auto px-2.5 py-4">
+          {NAV_GROUPS.map((group) => {
+            const items = group.items.filter((item) => !item.roles || (user && item.roles.includes(user.role)));
+            if (items.length === 0) return null;
+            return (
+              <div key={group.label}>
+                <p className="mb-1.5 px-2.5 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  {group.label}
+                </p>
+                <div className="space-y-0.5">
+                  {items.map((item) => (
+                    <NavLink key={item.to} to={item.to} end={item.end} className={linkClass} onClick={onClose}>
+                      <Icon name={item.icon} />
+                      {item.label}
+                    </NavLink>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+        </nav>
+
+        {user && (
+          <div className="border-t border-slate-800 p-3">
+            <div className="mb-2 flex items-center justify-between px-1">
+              <div className="min-w-0">
+                <p className="truncate text-sm text-slate-200">{user.fullName}</p>
+                <p className="text-xs text-slate-500">{ROLE_LABELS[user.role]}</p>
+              </div>
+              <button
+                onClick={toggleTheme}
+                title={theme === 'dark' ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'}
+                className="shrink-0 rounded-md p-1.5 text-slate-400 hover:bg-slate-800 hover:text-white"
+              >
+                <Icon name={theme === 'dark' ? 'sun' : 'moon'} />
+              </button>
+            </div>
+            <div className="flex items-center justify-between px-1">
+              <span className="text-xs text-slate-600" title="Versión de la app">
+                v{appVersion}
+              </span>
+              <button
+                onClick={logout}
+                className="rounded-md bg-slate-800 px-3 py-1 text-xs font-medium text-slate-200 hover:bg-slate-700"
+              >
+                Salir
+              </button>
+            </div>
+          </div>
+        )}
+      </aside>
+    </>
   );
 }
