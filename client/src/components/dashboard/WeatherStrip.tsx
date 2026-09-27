@@ -34,7 +34,7 @@ export function WeatherStrip({ bases, maxWindKmh, maxPrecipitationMm }: WeatherS
   if (bases.length === 0) return null;
 
   return (
-    <div className="absolute left-3 top-16 z-[1000] flex flex-wrap gap-2">
+    <div className="pointer-events-auto flex max-w-[calc(100vw-1.5rem)] flex-wrap gap-2">
       {bases.map((base) => {
         const w = weatherByBase[base.id];
         if (!w || w === 'error') return null;

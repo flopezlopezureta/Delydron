@@ -47,16 +47,25 @@ export function DashboardPage() {
         telemetryByDrone={telemetryByDrone}
         noFlyZones={noFlyZones}
       />
-      <TelemetryHud drones={drones} telemetryByDrone={telemetryByDrone} missions={missions} />
-      <MissionSummaryBar missions={missions} />
+      {/* A flex row (stacked on phone/tablet, side-by-side from `lg`) so the
+          left group and TelemetryHud lay out next to each other instead of
+          each owning a hardcoded corner — two independently-widthed absolute
+          boxes anchored to opposite edges can grow into each other on a
+          narrow screen; flex items along the same axis never can. */}
+      <div className="pointer-events-none absolute inset-x-3 top-3 z-[1000] flex flex-col items-start gap-2 lg:flex-row lg:items-start lg:justify-between">
+        <div className="flex flex-col items-start gap-2">
+          <MissionSummaryBar missions={missions} />
+          {settings && (
+            <WeatherStrip
+              bases={bases}
+              maxWindKmh={settings.max_wind_kmh}
+              maxPrecipitationMm={settings.max_precipitation_mm}
+            />
+          )}
+        </div>
+        <TelemetryHud drones={drones} telemetryByDrone={telemetryByDrone} missions={missions} />
+      </div>
       <FleetCapacityBar drones={drones} />
-      {settings && (
-        <WeatherStrip
-          bases={bases}
-          maxWindKmh={settings.max_wind_kmh}
-          maxPrecipitationMm={settings.max_precipitation_mm}
-        />
-      )}
     </div>
   );
 }
