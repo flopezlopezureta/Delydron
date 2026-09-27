@@ -1,7 +1,12 @@
 const db = require('../db');
 
-async function list() {
-  const { rows } = await db.query('SELECT * FROM bases ORDER BY name');
+// kind: 'bdd' | 'prd' | 'ped' — omit to get all three together (the map
+// views want that), pass it to power a filtered list (e.g. the mission
+// planner's PED picker only wants 'ped' rows).
+async function list(kind) {
+  const { rows } = kind
+    ? await db.query('SELECT * FROM bases WHERE kind = $1 ORDER BY name', [kind])
+    : await db.query('SELECT * FROM bases ORDER BY name');
   return rows;
 }
 
@@ -10,16 +15,16 @@ async function getById(id) {
   return rows[0] || null;
 }
 
-async function create({ name, address, lat, lon }) {
+async function create({ name, address, lat, lon, kind }) {
   const { rows } = await db.query(
-    `INSERT INTO bases (name, address, lat, lon) VALUES ($1, $2, $3, $4) RETURNING *`,
-    [name, address || null, lat, lon]
+    `INSERT INTO bases (name, address, lat, lon, kind) VALUES ($1, $2, $3, $4, COALESCE($5, 'bdd')) RETURNING *`,
+    [name, address || null, lat, lon, kind]
   );
   return rows[0];
 }
 
 async function update(id, fields) {
-  const allowed = ['name', 'address', 'lat', 'lon'];
+  const allowed = ['name', 'address', 'lat', 'lon', 'kind'];
   const sets = [];
   const values = [];
   let i = 1;

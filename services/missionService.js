@@ -1,3 +1,4 @@
+const crypto = require('crypto');
 const db = require('../db');
 const { publishMissionStatus } = require('./telemetryBus');
 const { haversineMeters, distanceToSegmentMeters } = require('../utils/geo');
@@ -5,6 +6,19 @@ const settingsService = require('./settingsService');
 const baseService = require('./baseService');
 const noFlyZoneService = require('./noFlyZoneService');
 const weatherService = require('./weatherService');
+
+// Every waypoint (destination) gets its own stable, unguessable token —
+// "Punto de Entrega" (PE), distinct from a base and from the mission-wide
+// tracking link: a multi-stop mission can carry several different
+// customers' packages, and sharing the whole mission's link with all of
+// them would leak every recipient's address to everyone else. Existing
+// tokens are kept as-is across edits, since one may already be shared.
+function ensurePeTokens(waypoints) {
+  return (waypoints || []).map((wp) => ({
+    ...wp,
+    peToken: wp.peToken || crypto.randomBytes(20).toString('hex'),
+  }));
+}
 
 async function getById(id) {
   const { rows } = await db.query('SELECT * FROM missions WHERE id = $1', [id]);
@@ -134,7 +148,7 @@ async function create({
       createdBy || null,
       status,
       priority,
-      waypoints ? JSON.stringify(waypoints) : null,
+      waypoints ? JSON.stringify(ensurePeTokens(waypoints)) : null,
       payloadDesc || null,
       pickupBaseId || null,
       pickupAddress || null,
@@ -150,7 +164,7 @@ async function update(id, fields) {
   const allowed = {
     drone_id: fields.droneId,
     priority: fields.priority,
-    waypoints: fields.waypoints ? JSON.stringify(fields.waypoints) : undefined,
+    waypoints: fields.waypoints ? JSON.stringify(ensurePeTokens(fields.waypoints)) : undefined,
     payload_desc: fields.payloadDesc,
     pickup_base_id: fields.pickupBaseId,
     pickup_address: fields.pickupAddress,
@@ -336,9 +350,71 @@ async function checkDispatchFeasible(mission, drone) {
   return weatherService.checkWeatherFeasible(drone.lat ?? drone.home_lat, drone.lon ?? drone.home_lon);
 }
 
+// Finds the mission and the specific waypoint carrying this PE token — the
+// @> containment operator matches a JSONB array with at least one element
+// that has this key/value, which is exactly "does any destination in this
+// mission have this token" without a separate table per destination.
+async function getByPeToken(peToken) {
+  const { rows } = await db.query(`SELECT * FROM missions WHERE waypoints @> $1::jsonb LIMIT 1`, [
+    JSON.stringify([{ peToken }]),
+  ]);
+  const mission = rows[0];
+  if (!mission) return null;
+  const waypoint = (mission.waypoints || []).find((wp) => wp.peToken === peToken);
+  if (!waypoint) return null;
+  return { mission, waypoint };
+}
+
+// Lets the customer nudge their own delivery point within a small radius of
+// where the operator originally placed it — mirrors how real operators
+// (Wing) have the recipient pick the exact spot on their property instead
+// of trusting a geocoded address to land exactly right. Bounded so the
+// link can't relocate a destination somewhere unrelated, and locked once
+// the mission leaves draft/scheduled/assigned (already dispatched or done).
+async function confirmDeliveryPoint(peToken, lat, lon) {
+  const found = await getByPeToken(peToken);
+  if (!found) return { error: 'not_found' };
+  const { mission, waypoint } = found;
+
+  if (!['draft', 'scheduled', 'assigned'].includes(mission.status)) {
+    return { error: 'mission_not_editable' };
+  }
+
+  const maxAdjustM = settingsService.getSync('pe_max_adjust_m');
+  // Anchored to where the point stood the first time it was ever confirmed
+  // (frozen below), not to the live lat/lon this same function overwrites
+  // on every call — otherwise repeated small nudges could walk arbitrarily
+  // far from the operator's original placement, one maxAdjustM hop at a time.
+  const anchor =
+    waypoint.anchorLat != null
+      ? { lat: waypoint.anchorLat, lon: waypoint.anchorLon }
+      : { lat: waypoint.lat, lon: waypoint.lon };
+  const distance = haversineMeters(anchor, { lat, lon });
+  if (distance > maxAdjustM) {
+    return { error: 'out_of_range', maxAdjustM };
+  }
+
+  const updatedWaypoints = mission.waypoints.map((wp) =>
+    wp.peToken === peToken
+      ? { ...wp, lat, lon, anchorLat: anchor.lat, anchorLon: anchor.lon, confirmedAt: new Date().toISOString() }
+      : wp
+  );
+
+  const zoneReason = await checkWaypointsAgainstNoFlyZones(updatedWaypoints);
+  if (zoneReason) return { error: 'route_restricted', message: zoneReason };
+
+  const { rows } = await db.query(
+    `UPDATE missions SET waypoints = $2::jsonb, updated_at = now() WHERE id = $1 RETURNING *`,
+    [mission.id, JSON.stringify(updatedWaypoints)]
+  );
+  return { mission: rows[0] };
+}
+
 module.exports = {
   getById,
   getByTrackingToken,
+  getByPeToken,
+  confirmDeliveryPoint,
   estimateEtaSeconds,
   getInProgress,
   existsForBase,

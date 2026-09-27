@@ -24,6 +24,12 @@ export function MissionPlannerPage() {
   const { bases } = useBases();
   const { zones: noFlyZones } = useNoFlyZones();
   const idleDrones = drones.filter((d) => d.status === 'idle');
+  // BDD = donde el dron retira la carga; PRD se suma como destino de
+  // retorno válido (recarga standalone) pero no de retiro; PED es un
+  // casillero fijo del cliente, nunca base de dron.
+  const pickupBases = bases.filter((b) => b.kind === 'bdd');
+  const returnableBases = bases.filter((b) => b.kind === 'bdd' || b.kind === 'prd');
+  const pedBases = bases.filter((b) => b.kind === 'ped');
 
   const [droneId, setDroneId] = useState('');
   const [priority, setPriority] = useState(3);
@@ -138,6 +144,15 @@ export function MissionPlannerPage() {
     }
   }
 
+  // A PED is a fixed, pre-existing point — picking one just adds it as a
+  // destination straight away, same as picking an address suggestion does.
+  function handleSelectPed(pedId: string) {
+    const ped = pedBases.find((b) => b.id === pedId);
+    if (!ped) return;
+    setError(null);
+    addWaypoint(ped.lat, ped.lon, ped.name);
+  }
+
   async function handleSubmit() {
     setError(null);
     if (waypoints.length < 1) {
@@ -226,14 +241,14 @@ export function MissionPlannerPage() {
         </div>
 
         <div className="mb-3">
-          <label className="mb-1 block text-xs text-slate-600">Base de retiro</label>
+          <label className="mb-1 block text-xs text-slate-600">Base de retiro (BDD)</label>
           <select
             value={pickupBaseId}
             onChange={(e) => handlePickupBaseChange(e.target.value)}
             className="w-full rounded border border-slate-300 px-2 py-1.5 text-sm"
           >
             <option value="">Sin base</option>
-            {bases.map((b) => (
+            {pickupBases.map((b) => (
               <option key={b.id} value={b.id}>
                 {b.name}
               </option>
@@ -263,6 +278,24 @@ export function MissionPlannerPage() {
           </p>
         </div>
 
+        {pedBases.length > 0 && (
+          <div className="mb-3">
+            <label className="mb-1 block text-xs text-slate-600">Agregar destino desde un PED existente</label>
+            <select
+              value=""
+              onChange={(e) => handleSelectPed(e.target.value)}
+              className="w-full rounded border border-slate-300 px-2 py-1.5 text-sm"
+            >
+              <option value="">Elegir punto de entrega fijo...</option>
+              {pedBases.map((b) => (
+                <option key={b.id} value={b.id}>
+                  {b.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+
         <div className="mb-3">
           <label className="mb-1 block text-xs text-slate-600">Base de retorno (vacío = base propia del dron)</label>
           <select
@@ -271,9 +304,10 @@ export function MissionPlannerPage() {
             className="w-full rounded border border-slate-300 px-2 py-1.5 text-sm"
           >
             <option value="">Base propia del dron</option>
-            {bases.map((b) => (
+            {returnableBases.map((b) => (
               <option key={b.id} value={b.id}>
                 {b.name}
+                {b.kind === 'prd' ? ' (PRD)' : ''}
               </option>
             ))}
           </select>

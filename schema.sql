@@ -27,16 +27,29 @@ ALTER TABLE users DROP CONSTRAINT IF EXISTS users_role_check;
 ALTER TABLE users ADD CONSTRAINT users_role_check
   CHECK (role IN ('super_admin','admin','operator','technician','auxiliary'));
 
--- BASES (dispatch depots/hubs) --------------------------------------------
+-- BASES — three named concepts, one shared shape (name + coordinates), so
+-- they live in one table with a `kind` discriminator instead of three
+-- near-identical ones:
+--   'bdd' — Base Drones Delydrone: drone depot/hub (home, pickup, return)
+--   'prd' — Punto de Recarga Delydrone: standalone charging point a drone
+--           can return to without going all the way back to its home BDD
+--   'ped' — Punto de Entrega Fijo Delydrone: Delydrone-operated fixed
+--           collection point (locker/kiosk style) shared by many customers
+-- Existing rows default to 'bdd' — that's what every base already meant.
 CREATE TABLE IF NOT EXISTS bases (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name VARCHAR(100) NOT NULL,
   address VARCHAR(255),
   lat DOUBLE PRECISION NOT NULL,
   lon DOUBLE PRECISION NOT NULL,
+  kind VARCHAR(10) NOT NULL DEFAULT 'bdd' CHECK (kind IN ('bdd', 'prd', 'ped')),
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+ALTER TABLE bases ADD COLUMN IF NOT EXISTS kind VARCHAR(10) NOT NULL DEFAULT 'bdd';
+ALTER TABLE bases DROP CONSTRAINT IF EXISTS bases_kind_check;
+ALTER TABLE bases ADD CONSTRAINT bases_kind_check CHECK (kind IN ('bdd', 'prd', 'ped'));
+CREATE INDEX IF NOT EXISTS idx_bases_kind ON bases(kind);
 
 -- DRONES -----------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS drones (

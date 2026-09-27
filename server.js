@@ -65,6 +65,7 @@ app.use('/api/missions', require('./routes/missions'));
 app.use('/api/deliveries', require('./routes/deliveries'));
 app.use('/api/telemetry', require('./routes/telemetry'));
 app.use('/api/track', require('./routes/track'));
+app.use('/api/pe', require('./routes/deliveryPoint'));
 app.use('/api/audit', require('./routes/audit'));
 
 const clientDist = path.join(__dirname, 'client', 'dist');

@@ -1,7 +1,18 @@
 import { useEffect, useMemo, useRef } from 'react';
 import * as L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import type { Base, Delivery, Drone, DroneStatus, Mission, NoFlyZone, TelemetryPayload, Waypoint } from '../../types';
+import {
+  BASE_KIND_LABELS,
+  type Base,
+  type BaseKind,
+  type Delivery,
+  type Drone,
+  type DroneStatus,
+  type Mission,
+  type NoFlyZone,
+  type TelemetryPayload,
+  type Waypoint,
+} from '../../types';
 
 interface LiveMapProps {
   drones: Drone[];
@@ -12,14 +23,20 @@ interface LiveMapProps {
   noFlyZones?: NoFlyZone[];
 }
 
-function baseIconHtml() {
-  return `<div style="width:22px;height:22px;border-radius:5px;background:#0f172a;color:white;
-    display:flex;align-items:center;justify-content:center;font:700 11px sans-serif;
-    border:2px solid white;box-shadow:0 1px 3px rgba(0,0,0,.4);">B</div>`;
+const BASE_KIND_COLORS: Record<BaseKind, string> = {
+  bdd: '#0f172a',
+  prd: '#d97706',
+  ped: '#059669',
+};
+
+function baseIconHtml(kind: BaseKind) {
+  return `<div style="min-width:32px;height:20px;padding:0 4px;border-radius:5px;background:${BASE_KIND_COLORS[kind]};color:white;
+    display:flex;align-items:center;justify-content:center;font:700 9px sans-serif;
+    border:2px solid white;box-shadow:0 1px 3px rgba(0,0,0,.4);">${kind.toUpperCase()}</div>`;
 }
 
-function makeBaseIcon() {
-  return L.divIcon({ className: '', html: baseIconHtml(), iconSize: [22, 22], iconAnchor: [11, 11] });
+function makeBaseIcon(kind: BaseKind) {
+  return L.divIcon({ className: '', html: baseIconHtml(kind), iconSize: [32, 20], iconAnchor: [16, 10] });
 }
 
 const DEFAULT_CENTER: [number, number] = [-33.4489, -70.6693];
@@ -175,8 +192,8 @@ export function LiveMap({ drones, bases, missions, deliveries, telemetryByDrone,
 
     for (const marker of baseMarkersRef.current) marker.remove();
     baseMarkersRef.current = bases.map((base) => {
-      const marker = L.marker([base.lat, base.lon], { icon: makeBaseIcon() }).addTo(map);
-      marker.bindTooltip(`${base.name}${base.address ? ` · ${base.address}` : ''}`);
+      const marker = L.marker([base.lat, base.lon], { icon: makeBaseIcon(base.kind) }).addTo(map);
+      marker.bindTooltip(`${BASE_KIND_LABELS[base.kind]} — ${base.name}${base.address ? ` · ${base.address}` : ''}`);
       return marker;
     });
   }, [bases]);

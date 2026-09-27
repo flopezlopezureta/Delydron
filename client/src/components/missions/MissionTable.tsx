@@ -21,6 +21,10 @@ export function MissionTable({ missions, drones, bases, liveStatusById, onChange
   const [shareTarget, setShareTarget] = useState<Mission | null>(null);
 
   const idleDrones = useMemo(() => drones.filter((d) => d.status === 'idle'), [drones]);
+  // A drone can return to its own BDD or a standalone PRD, but never a PED
+  // (a customer locker, not a place a drone recharges) — same rule as the
+  // return-base dropdown in MissionPlannerPage.
+  const returnableBases = useMemo(() => bases.filter((b) => b.kind === 'bdd' || b.kind === 'prd'), [bases]);
 
   const droneNameById = useMemo(() => {
     const map: Record<string, string> = {};
@@ -120,9 +124,10 @@ export function MissionTable({ missions, drones, bases, liveStatusById, onChange
                       className="rounded border border-slate-300 px-1.5 py-1 text-xs disabled:opacity-50"
                     >
                       <option value="">Base propia del dron</option>
-                      {bases.map((b) => (
+                      {returnableBases.map((b) => (
                         <option key={b.id} value={b.id}>
                           {b.name}
+                          {b.kind === 'prd' ? ' (PRD)' : ''}
                         </option>
                       ))}
                     </select>

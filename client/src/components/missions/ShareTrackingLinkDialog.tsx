@@ -4,6 +4,10 @@ interface ShareTrackingLinkDialogProps {
   missionCode: string | null;
   url: string;
   onClose: () => void;
+  // Reused for the PEC ("copiar link PEC" in WaypointList) — defaults keep
+  // every existing tracking-link call site unchanged.
+  title?: string;
+  description?: string;
 }
 
 // The link itself is always visible and selectable — that's the real
@@ -11,7 +15,13 @@ interface ShareTrackingLinkDialogProps {
 // permissions or an embedding context) and not window.prompt (unavailable
 // in some embedded/automated browsers). The "Copiar" button is a
 // convenience on top, never the only way to get the link.
-export function ShareTrackingLinkDialog({ missionCode, url, onClose }: ShareTrackingLinkDialogProps) {
+export function ShareTrackingLinkDialog({
+  missionCode,
+  url,
+  onClose,
+  title,
+  description = 'Cualquiera con este link puede ver el estado del envío, sin necesidad de cuenta.',
+}: ShareTrackingLinkDialogProps) {
   const [copied, setCopied] = useState(false);
   const inputRef = useRef<HTMLInputElement | null>(null);
 
@@ -29,11 +39,10 @@ export function ShareTrackingLinkDialog({ missionCode, url, onClose }: ShareTrac
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4">
       <div className="w-full max-w-sm rounded-lg bg-white p-4 shadow-xl">
         <h2 className="mb-1 text-sm font-semibold text-slate-800">
-          Link de seguimiento{missionCode ? ` — ${missionCode}` : ''}
+          {title ?? 'Link de seguimiento'}
+          {missionCode ? ` — ${missionCode}` : ''}
         </h2>
-        <p className="mb-3 text-xs text-slate-500">
-          Cualquiera con este link puede ver el estado del envío, sin necesidad de cuenta.
-        </p>
+        <p className="mb-3 text-xs text-slate-500">{description}</p>
 
         <input
           ref={inputRef}

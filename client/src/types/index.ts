@@ -59,12 +59,26 @@ export interface Drone {
   maintenance_interval_hours: string | number;
 }
 
+// BDD = base de drones Delydrone (depósito: retiro/almacenaje/recarga de la
+// flota). PRD = punto de recarga Delydrone (recarga standalone, un dron
+// puede volver aquí en vez de a su BDD de origen). PED = punto de entrega
+// fijo Delydrone (casillero/kiosco operado por Delydrone donde el cliente
+// retira su paquete, en vez de una entrega puerta a puerta).
+export type BaseKind = 'bdd' | 'prd' | 'ped';
+
+export const BASE_KIND_LABELS: Record<BaseKind, string> = {
+  bdd: 'Base de drones (BDD)',
+  prd: 'Punto de recarga (PRD)',
+  ped: 'Punto de entrega fijo (PED)',
+};
+
 export interface Base {
   id: string;
   name: string;
   address: string | null;
   lat: number;
   lon: number;
+  kind: BaseKind;
 }
 
 export interface NoFlyZone {
@@ -102,6 +116,26 @@ export interface Waypoint {
   address?: string;
   action?: string;
   hold_s?: number;
+  // Per-destination secret (see routes/deliveryPoint.js) — only present once
+  // the mission has been saved at least once. Lets the customer for THIS
+  // stop, and only this stop, confirm/adjust their PEC without exposing or
+  // touching any other recipient's point in a multi-stop mission.
+  peToken?: string;
+  confirmedAt?: string;
+}
+
+// Shape of GET/PATCH /api/pe/:token — the public, unauthenticated view a
+// customer sees when confirming their PEC (punto de entrega cliente).
+export interface DeliveryPointInfo {
+  missionCode: string | null;
+  missionStatus: MissionStatus;
+  editable: boolean;
+  lat: number;
+  lon: number;
+  address: string | null;
+  packageDesc: string | null;
+  confirmedAt: string | null;
+  maxAdjustM: number;
 }
 
 // Mirrors missions_abort_reason_code_check in schema.sql / ABORT_REASON_CODES

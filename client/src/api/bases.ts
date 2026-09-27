@@ -1,15 +1,16 @@
 import { apiFetch } from './client';
-import type { Base } from '../types';
+import type { Base, BaseKind } from '../types';
 
 export interface BaseInput {
   name: string;
   address?: string;
   lat: number;
   lon: number;
+  kind?: BaseKind;
 }
 
-export function listBases(): Promise<Base[]> {
-  return apiFetch<Base[]>('/api/bases');
+export function listBases(kind?: BaseKind): Promise<Base[]> {
+  return apiFetch<Base[]>(kind ? `/api/bases?kind=${kind}` : '/api/bases');
 }
 
 export function createBase(input: BaseInput): Promise<Base> {

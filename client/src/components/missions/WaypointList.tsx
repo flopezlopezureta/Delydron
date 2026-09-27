@@ -1,4 +1,6 @@
+import { useState } from 'react';
 import type { Waypoint } from '../../types';
+import { ShareTrackingLinkDialog } from './ShareTrackingLinkDialog';
 
 interface WaypointListProps {
   waypoints: Waypoint[];
@@ -9,11 +11,17 @@ interface WaypointListProps {
 }
 
 export function WaypointList({ waypoints, onAltitudeChange, onPackageChange, onRemove, onReorder }: WaypointListProps) {
+  // peToken only exists once the mission has been saved at least once (it's
+  // generated server-side on first save), so this stays null until then —
+  // there's nothing to share for a destination that isn't persisted yet.
+  const [shareTarget, setShareTarget] = useState<Waypoint | null>(null);
+
   if (waypoints.length === 0) {
     return <div className="text-sm text-slate-400">Haz clic en el mapa para agregar destinos.</div>;
   }
 
   return (
+    <>
     <ul className="space-y-2">
       {waypoints.map((wp, index) => (
         <li key={index} className="rounded border border-slate-200 p-2 text-sm">
@@ -62,6 +70,16 @@ export function WaypointList({ waypoints, onAltitudeChange, onPackageChange, onR
                 className="w-16 rounded border border-slate-300 px-1 py-0.5"
               />
             </label>
+            {wp.peToken && (
+              <button
+                type="button"
+                onClick={() => setShareTarget(wp)}
+                className="shrink-0 rounded px-1.5 py-0.5 text-xs text-blue-600 hover:bg-blue-50"
+                title="Copiar link para que el cliente confirme su punto de entrega (PEC)"
+              >
+                Link PEC
+              </button>
+            )}
             <button
               type="button"
               onClick={() => onRemove(index)}
@@ -79,5 +97,15 @@ export function WaypointList({ waypoints, onAltitudeChange, onPackageChange, onR
         </li>
       ))}
     </ul>
+    {shareTarget && shareTarget.peToken && (
+      <ShareTrackingLinkDialog
+        missionCode={null}
+        title={`Link PEC — destino #${shareTarget.seq}`}
+        description="El cliente usa este link para confirmar o ajustar dónde exactamente quiere recibir este paquete."
+        url={`${window.location.origin}/pec/${shareTarget.peToken}`}
+        onClose={() => setShareTarget(null)}
+      />
+    )}
+    </>
   );
 }

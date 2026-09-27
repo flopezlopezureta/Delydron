@@ -1,24 +1,32 @@
 import { useEffect, useRef } from 'react';
 import * as L from 'leaflet';
+import type { BaseKind } from '../../types';
 
 interface BasePickerMapProps {
   center: [number, number];
   point: { lat: number; lon: number } | null;
+  kind: BaseKind;
   onPick: (lat: number, lon: number) => void;
 }
 
-function baseIcon() {
+const BASE_KIND_COLORS: Record<BaseKind, string> = {
+  bdd: '#0f172a',
+  prd: '#d97706',
+  ped: '#059669',
+};
+
+function baseIcon(kind: BaseKind) {
   return L.divIcon({
     className: '',
-    html: `<div style="width:26px;height:26px;border-radius:6px;background:#0f172a;color:white;
-      display:flex;align-items:center;justify-content:center;font:700 13px sans-serif;
-      border:2px solid white;box-shadow:0 1px 3px rgba(0,0,0,.4);">B</div>`,
-    iconSize: [26, 26],
-    iconAnchor: [13, 13],
+    html: `<div style="min-width:34px;height:22px;padding:0 4px;border-radius:6px;background:${BASE_KIND_COLORS[kind]};color:white;
+      display:flex;align-items:center;justify-content:center;font:700 10px sans-serif;
+      border:2px solid white;box-shadow:0 1px 3px rgba(0,0,0,.4);">${kind.toUpperCase()}</div>`,
+    iconSize: [34, 22],
+    iconAnchor: [17, 11],
   });
 }
 
-export function BasePickerMap({ center, point, onPick }: BasePickerMapProps) {
+export function BasePickerMap({ center, point, kind, onPick }: BasePickerMapProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<L.Map | null>(null);
   const markerRef = useRef<L.Marker | null>(null);
@@ -56,7 +64,7 @@ export function BasePickerMap({ center, point, onPick }: BasePickerMapProps) {
     }
 
     if (!markerRef.current) {
-      const marker = L.marker([point.lat, point.lon], { icon: baseIcon(), draggable: true }).addTo(map);
+      const marker = L.marker([point.lat, point.lon], { icon: baseIcon(kind), draggable: true }).addTo(map);
       marker.on('dragend', () => {
         const pos = marker.getLatLng();
         onPickRef.current(pos.lat, pos.lng);
@@ -64,8 +72,9 @@ export function BasePickerMap({ center, point, onPick }: BasePickerMapProps) {
       markerRef.current = marker;
     } else {
       markerRef.current.setLatLng([point.lat, point.lon]);
+      markerRef.current.setIcon(baseIcon(kind));
     }
-  }, [point]);
+  }, [point, kind]);
 
   return <div ref={containerRef} className="h-full w-full" />;
 }

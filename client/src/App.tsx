@@ -15,6 +15,7 @@ import { AuditLogPage } from './pages/AuditLogPage';
 import { AnalyticsPage } from './pages/AnalyticsPage';
 import { MissionCertificatePage } from './pages/MissionCertificatePage';
 import { TrackingPage } from './pages/TrackingPage';
+import { DeliveryPointPage } from './pages/DeliveryPointPage';
 
 function AppShell() {
   return (
@@ -35,6 +36,8 @@ export default function App() {
           <Route path="/login" element={<LoginPage />} />
           {/* Public — no account needed, shared straight with a client. */}
           <Route path="/t/:token" element={<TrackingPage />} />
+          {/* PEC — punto de entrega cliente, one link per destination. */}
+          <Route path="/pec/:token" element={<DeliveryPointPage />} />
           <Route
             path="/"
             element={

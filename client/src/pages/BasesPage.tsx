@@ -4,9 +4,22 @@ import { useBases } from '../hooks/useBases';
 import { createBase, updateBase, deleteBase } from '../api/bases';
 import { geocodeAddress } from '../api/geocoding';
 import { BasePickerMap } from '../components/bases/BasePickerMap';
-import type { Base } from '../types';
+import { BASE_KIND_LABELS, type Base, type BaseKind } from '../types';
 
 const DEFAULT_CENTER: [number, number] = [-33.4489, -70.6693];
+
+const KIND_FILTERS: { label: string; kind?: BaseKind }[] = [
+  { label: 'Todas' },
+  { label: 'BDD', kind: 'bdd' },
+  { label: 'PRD', kind: 'prd' },
+  { label: 'PED', kind: 'ped' },
+];
+
+const KIND_BADGE_CLASSES: Record<BaseKind, string> = {
+  bdd: 'bg-slate-100 text-slate-700',
+  prd: 'bg-amber-100 text-amber-700',
+  ped: 'bg-emerald-100 text-emerald-700',
+};
 
 export function BasesPage() {
   const { user } = useAuth();
@@ -16,12 +29,16 @@ export function BasesPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [name, setName] = useState('');
   const [address, setAddress] = useState('');
+  const [kind, setKind] = useState<BaseKind>('bdd');
   const [point, setPoint] = useState<{ lat: number; lon: number } | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [searchingAddress, setSearchingAddress] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [kindFilter, setKindFilter] = useState<BaseKind | undefined>(undefined);
+
+  const visibleBases = kindFilter ? bases.filter((b) => b.kind === kindFilter) : bases;
 
   async function handleFindAddress() {
     if (!address.trim()) return;
@@ -44,6 +61,7 @@ export function BasesPage() {
   function resetForm() {
     setName('');
     setAddress('');
+    setKind('bdd');
     setPoint(null);
     setFormError(null);
     setEditingId(null);
@@ -54,6 +72,7 @@ export function BasesPage() {
     setEditingId(b.id);
     setName(b.name);
     setAddress(b.address ?? '');
+    setKind(b.kind);
     setPoint({ lat: b.lat, lon: b.lon });
     setFormError(null);
     setShowForm(true);
@@ -66,7 +85,7 @@ export function BasesPage() {
 
     setSubmitting(true);
     try {
-      const input = { name, address: address || undefined, lat: point.lat, lon: point.lon };
+      const input = { name, address: address || undefined, lat: point.lat, lon: point.lon, kind };
       if (editingId) {
         await updateBase(editingId, input);
       } else {
@@ -120,6 +139,7 @@ export function BasesPage() {
             <BasePickerMap
               center={point ? [point.lat, point.lon] : DEFAULT_CENTER}
               point={point}
+              kind={kind}
               onPick={(lat, lon) => setPoint({ lat, lon })}
             />
           </div>
@@ -127,6 +147,22 @@ export function BasesPage() {
             <h2 className="mb-2 text-sm font-semibold text-slate-700">
               {editingId ? 'Editar base' : 'Nueva base'}
             </h2>
+            <label className="mb-1 block text-xs text-slate-600">Tipo</label>
+            <div className="mb-3 flex gap-1.5">
+              {(Object.keys(BASE_KIND_LABELS) as BaseKind[]).map((k) => (
+                <button
+                  key={k}
+                  type="button"
+                  onClick={() => setKind(k)}
+                  className={`rounded-full px-3 py-1 text-xs font-medium ${
+                    kind === k ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                  }`}
+                >
+                  {k.toUpperCase()}
+                </button>
+              ))}
+            </div>
+            <p className="mb-3 -mt-2 text-xs text-slate-400">{BASE_KIND_LABELS[kind]}</p>
             <label className="mb-1 block text-xs text-slate-600">Nombre</label>
             <input
               value={name}
@@ -180,6 +216,20 @@ export function BasesPage() {
         </div>
       )}
 
+      <div className="mb-4 flex gap-1.5">
+        {KIND_FILTERS.map((f) => (
+          <button
+            key={f.label}
+            onClick={() => setKindFilter(f.kind)}
+            className={`rounded-full px-3 py-1 text-xs font-medium ${
+              kindFilter === f.kind ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+            }`}
+          >
+            {f.label}
+          </button>
+        ))}
+      </div>
+
       {loading && <div className="text-sm text-gray-500">Cargando bases...</div>}
       {error && <div className="text-sm text-red-600">Error: {error}</div>}
       {deleteError && <div className="mb-3 text-sm text-red-600">{deleteError}</div>}
@@ -189,15 +239,21 @@ export function BasesPage() {
             <thead className="bg-slate-50 text-xs uppercase text-slate-500">
               <tr>
                 <th className="px-4 py-2">Nombre</th>
+                <th className="px-4 py-2">Tipo</th>
                 <th className="px-4 py-2">Dirección</th>
                 <th className="px-4 py-2">Ubicación</th>
                 <th className="px-4 py-2">Acciones</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {bases.map((b) => (
+              {visibleBases.map((b) => (
                 <tr key={b.id}>
                   <td className="px-4 py-2 font-medium text-slate-800">{b.name}</td>
+                  <td className="px-4 py-2">
+                    <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${KIND_BADGE_CLASSES[b.kind]}`}>
+                      {b.kind.toUpperCase()}
+                    </span>
+                  </td>
                   <td className="px-4 py-2 text-slate-600">{b.address ?? '—'}</td>
                   <td className="px-4 py-2 font-mono text-xs text-slate-500">
                     {b.lat.toFixed(5)}, {b.lon.toFixed(5)}
@@ -226,10 +282,10 @@ export function BasesPage() {
                   </td>
                 </tr>
               ))}
-              {bases.length === 0 && (
+              {visibleBases.length === 0 && (
                 <tr>
-                  <td colSpan={4} className="px-4 py-4 text-center text-slate-400">
-                    No hay bases todavía.
+                  <td colSpan={5} className="px-4 py-4 text-center text-slate-400">
+                    {bases.length === 0 ? 'No hay bases todavía.' : 'Ningún resultado para este filtro.'}
                   </td>
                 </tr>
               )}

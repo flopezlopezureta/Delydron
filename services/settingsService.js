@@ -18,6 +18,10 @@ const DEFAULTS = {
   max_precipitation_mm: 0.5,
   // How fast an idle drone recharges — see SimulatedAdapter.advanceCharging().
   battery_charge_pct_per_min: 10,
+  // How far (meters) a customer can nudge their confirmed delivery point
+  // from where the operator originally placed it — see
+  // missionService.confirmDeliveryPoint().
+  pe_max_adjust_m: 300,
 };
 
 // In-memory mirror of the settings table — advanceFlight() runs once per
