@@ -16,10 +16,21 @@ const KIND_FILTERS: { label: string; kind?: BaseKind }[] = [
 ];
 
 const KIND_BADGE_CLASSES: Record<BaseKind, string> = {
-  bdd: 'bg-slate-100 text-slate-700',
-  prd: 'bg-amber-100 text-amber-700',
-  ped: 'bg-emerald-100 text-emerald-700',
+  bdd: 'bg-slate-100 text-slate-700 dark:bg-slate-700/60 dark:text-slate-300',
+  prd: 'bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300',
+  ped: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300',
 };
+
+const filterPillClass = (active: boolean) =>
+  `rounded-full px-3 py-1 text-xs font-medium ${
+    active
+      ? 'bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900'
+      : 'bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700'
+  }`;
+const inputClass =
+  'w-full rounded border border-slate-300 bg-white px-2 py-1.5 text-sm text-slate-800 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100';
+const secondaryButtonClass =
+  'rounded border border-slate-300 px-2 py-1 text-xs text-slate-600 hover:bg-slate-50 disabled:opacity-50 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-800';
 
 export function BasesPage() {
   const { user } = useAuth();
@@ -122,16 +133,16 @@ export function BasesPage() {
   return (
     <div className="h-full overflow-y-auto p-4">
       <div className="mb-4 flex items-center justify-between">
-        <h1 className="text-lg font-semibold text-slate-800">Bases de despacho</h1>
+        <h1 className="text-lg font-semibold text-slate-800 dark:text-slate-100">Bases de despacho</h1>
         {kindFilter && (
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
             {BASE_KIND_LABELS[kindFilter]}
           </p>
         )}
         {isAdmin && !showForm && (
           <button
             onClick={() => setShowForm(true)}
-            className="rounded bg-slate-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-800"
+            className="rounded bg-brand px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-dark"
           >
             Nueva base
           </button>
@@ -139,8 +150,8 @@ export function BasesPage() {
       </div>
 
       {isAdmin && showForm && (
-        <div className="mb-4 flex gap-4 rounded-lg border border-slate-200 bg-white p-4">
-          <div className="h-80 w-96 shrink-0 overflow-hidden rounded border border-slate-200">
+        <div className="mb-4 flex gap-4 rounded-lg border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
+          <div className="h-80 w-96 shrink-0 overflow-hidden rounded border border-slate-200 dark:border-slate-700">
             <BasePickerMap
               center={point ? [point.lat, point.lon] : DEFAULT_CENTER}
               point={point}
@@ -149,32 +160,26 @@ export function BasesPage() {
             />
           </div>
           <div className="flex flex-1 flex-col">
-            <h2 className="mb-2 text-sm font-semibold text-slate-700">
+            <h2 className="mb-2 text-sm font-semibold text-slate-700 dark:text-slate-200">
               {editingId ? 'Editar base' : 'Nueva base'}
             </h2>
-            <label className="mb-1 block text-xs text-slate-600">Tipo</label>
+            <label className="mb-1 block text-xs text-slate-600 dark:text-slate-400">Tipo</label>
             <div className="mb-3 flex gap-1.5">
               {(Object.keys(BASE_KIND_LABELS) as BaseKind[]).map((k) => (
                 <button
                   key={k}
                   type="button"
                   onClick={() => setKind(k)}
-                  className={`rounded-full px-3 py-1 text-xs font-medium ${
-                    kind === k ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                  }`}
+                  className={filterPillClass(kind === k)}
                 >
                   {k.toUpperCase()}
                 </button>
               ))}
             </div>
-            <p className="mb-3 -mt-2 text-xs text-slate-400">{BASE_KIND_LABELS[kind]}</p>
-            <label className="mb-1 block text-xs text-slate-600">Nombre</label>
-            <input
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              className="mb-3 w-full rounded border border-slate-300 px-2 py-1.5 text-sm"
-            />
-            <label className="mb-1 block text-xs text-slate-600">Dirección</label>
+            <p className="mb-3 -mt-2 text-xs text-slate-400 dark:text-slate-500">{BASE_KIND_LABELS[kind]}</p>
+            <label className="mb-1 block text-xs text-slate-600 dark:text-slate-400">Nombre</label>
+            <input value={name} onChange={(e) => setName(e.target.value)} className={`mb-3 ${inputClass}`} />
+            <label className="mb-1 block text-xs text-slate-600 dark:text-slate-400">Dirección</label>
             <div className="mb-3 flex gap-1">
               <input
                 value={address}
@@ -185,34 +190,34 @@ export function BasesPage() {
                     handleFindAddress();
                   }
                 }}
-                className="w-full rounded border border-slate-300 px-2 py-1.5 text-sm"
+                className={inputClass}
               />
               <button
                 type="button"
                 onClick={handleFindAddress}
                 disabled={searchingAddress || !address.trim()}
-                className="shrink-0 rounded border border-slate-300 px-2 py-1.5 text-xs text-slate-600 hover:bg-slate-50 disabled:opacity-50"
+                className={`shrink-0 ${secondaryButtonClass}`}
               >
                 {searchingAddress ? '...' : 'Buscar'}
               </button>
             </div>
-            <p className="mb-3 text-xs text-slate-500">
+            <p className="mb-3 text-xs text-slate-500 dark:text-slate-400">
               {point
                 ? `Ubicación: ${point.lat.toFixed(5)}, ${point.lon.toFixed(5)}`
                 : 'Escribe la dirección y toca "Buscar", o haz clic directo en el mapa.'}
             </p>
-            {formError && <div className="mb-3 text-sm text-red-600">{formError}</div>}
+            {formError && <div className="mb-3 text-sm text-red-600 dark:text-red-400">{formError}</div>}
             <div className="mt-auto flex gap-2">
               <button
                 onClick={handleSubmit}
                 disabled={submitting}
-                className="rounded bg-slate-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-50"
+                className="rounded bg-brand px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-dark disabled:opacity-50"
               >
                 {submitting ? 'Guardando...' : editingId ? 'Guardar cambios' : 'Guardar base'}
               </button>
               <button
                 onClick={resetForm}
-                className="rounded border border-slate-300 px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50"
+                className="rounded border border-slate-300 px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-800"
               >
                 Cancelar
               </button>
@@ -223,25 +228,19 @@ export function BasesPage() {
 
       <div className="mb-4 flex gap-1.5">
         {KIND_FILTERS.map((f) => (
-          <button
-            key={f.label}
-            onClick={() => setKindFilter(f.kind)}
-            className={`rounded-full px-3 py-1 text-xs font-medium ${
-              kindFilter === f.kind ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-            }`}
-          >
+          <button key={f.label} onClick={() => setKindFilter(f.kind)} className={filterPillClass(kindFilter === f.kind)}>
             {f.label}
           </button>
         ))}
       </div>
 
-      {loading && <div className="text-sm text-gray-500">Cargando bases...</div>}
-      {error && <div className="text-sm text-red-600">Error: {error}</div>}
-      {deleteError && <div className="mb-3 text-sm text-red-600">{deleteError}</div>}
+      {loading && <div className="text-sm text-gray-500 dark:text-slate-400">Cargando bases...</div>}
+      {error && <div className="text-sm text-red-600 dark:text-red-400">Error: {error}</div>}
+      {deleteError && <div className="mb-3 text-sm text-red-600 dark:text-red-400">{deleteError}</div>}
       {!loading && !error && (
-        <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
-          <table className="w-full text-left text-sm">
-            <thead className="bg-slate-50 text-xs uppercase text-slate-500">
+        <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
+          <table className="w-full text-left text-sm text-slate-700 dark:text-slate-300">
+            <thead className="bg-slate-50 text-xs uppercase text-slate-500 dark:bg-slate-800 dark:text-slate-400">
               <tr>
                 <th className="px-4 py-2">Nombre</th>
                 <th className="px-4 py-2">Tipo</th>
@@ -250,46 +249,42 @@ export function BasesPage() {
                 <th className="px-4 py-2">Acciones</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
               {visibleBases.map((b) => (
                 <tr key={b.id}>
-                  <td className="px-4 py-2 font-medium text-slate-800">{b.name}</td>
+                  <td className="px-4 py-2 font-medium text-slate-800 dark:text-slate-100">{b.name}</td>
                   <td className="px-4 py-2">
                     <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${KIND_BADGE_CLASSES[b.kind]}`}>
                       {b.kind.toUpperCase()}
                     </span>
                   </td>
-                  <td className="px-4 py-2 text-slate-600">{b.address ?? '—'}</td>
-                  <td className="px-4 py-2 font-mono text-xs text-slate-500">
+                  <td className="px-4 py-2 text-slate-600 dark:text-slate-400">{b.address ?? '—'}</td>
+                  <td className="px-4 py-2 font-mono text-xs text-slate-500 dark:text-slate-400">
                     {b.lat.toFixed(5)}, {b.lon.toFixed(5)}
                   </td>
                   <td className="px-4 py-2">
                     {isAdmin ? (
                       <div className="flex gap-2">
-                        <button
-                          disabled={busyId === b.id}
-                          onClick={() => startEdit(b)}
-                          className="rounded border border-slate-300 px-2 py-1 text-xs text-slate-600 hover:bg-slate-50 disabled:opacity-50"
-                        >
+                        <button disabled={busyId === b.id} onClick={() => startEdit(b)} className={secondaryButtonClass}>
                           Editar
                         </button>
                         <button
                           disabled={busyId === b.id}
                           onClick={() => handleDelete(b.id)}
-                          className="rounded border border-slate-300 px-2 py-1 text-xs text-slate-600 hover:bg-slate-50 disabled:opacity-50"
+                          className={secondaryButtonClass}
                         >
                           Eliminar
                         </button>
                       </div>
                     ) : (
-                      <span className="text-slate-300">—</span>
+                      <span className="text-slate-300 dark:text-slate-600">—</span>
                     )}
                   </td>
                 </tr>
               ))}
               {visibleBases.length === 0 && (
                 <tr>
-                  <td colSpan={5} className="px-4 py-4 text-center text-slate-400">
+                  <td colSpan={5} className="px-4 py-4 text-center text-slate-400 dark:text-slate-500">
                     {bases.length === 0 ? 'No hay bases todavía.' : 'Ningún resultado para este filtro.'}
                   </td>
                 </tr>

@@ -25,10 +25,10 @@ export function MissionsPage() {
   return (
     <div className="h-full overflow-y-auto p-4">
       <div className="mb-4 flex items-center justify-between">
-        <h1 className="text-lg font-semibold text-slate-800">Misiones</h1>
+        <h1 className="text-lg font-semibold text-slate-800 dark:text-slate-100">Misiones</h1>
         <Link
           to="/missions/new"
-          className="rounded bg-slate-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-800"
+          className="rounded bg-brand px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-dark"
         >
           Nueva misión
         </Link>
@@ -41,8 +41,8 @@ export function MissionsPage() {
             onClick={() => setFilter(f.status)}
             className={`rounded-full px-3 py-1 text-xs font-medium ${
               filter === f.status
-                ? 'bg-slate-900 text-white'
-                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                ? 'bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900'
+                : 'bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700'
             }`}
           >
             {f.label}
@@ -50,8 +50,8 @@ export function MissionsPage() {
         ))}
       </div>
 
-      {loading && <div className="text-sm text-gray-500">Cargando misiones...</div>}
-      {error && <div className="text-sm text-red-600">Error: {error}</div>}
+      {loading && <div className="text-sm text-gray-500 dark:text-slate-400">Cargando misiones...</div>}
+      {error && <div className="text-sm text-red-600 dark:text-red-400">Error: {error}</div>}
       {!loading && !error && (
         <MissionTable
           missions={missions}

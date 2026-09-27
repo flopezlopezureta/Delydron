@@ -16,6 +16,14 @@ import type { Drone } from '../types';
 // unloading, returning, armed) is a candidate for a manual recall/stop.
 const RECALLABLE_STATUSES = ['in_flight', 'unloading', 'returning', 'armed'];
 
+const labelClass = 'mb-1 block text-xs text-slate-600 dark:text-slate-400';
+const inputClass =
+  'w-full rounded border border-slate-300 bg-white px-2 py-1.5 text-sm text-slate-800 disabled:bg-slate-50 disabled:text-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:disabled:bg-slate-900 dark:disabled:text-slate-500';
+const cardClass = 'rounded-lg border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900';
+const primaryButtonClass = 'rounded bg-brand px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-dark disabled:opacity-50';
+const secondaryButtonClass =
+  'rounded border border-slate-300 px-2 py-1 text-xs text-slate-600 hover:bg-slate-50 disabled:opacity-50 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-800';
+
 export function ConfigPage() {
   const { user } = useAuth();
   const isAdmin = user?.role === 'admin' || user?.role === 'super_admin';
@@ -185,39 +193,41 @@ export function ConfigPage() {
 
   return (
     <div className="h-full overflow-y-auto p-4">
-      <h1 className="mb-4 text-lg font-semibold text-slate-800">Configuración</h1>
+      <h1 className="mb-4 text-lg font-semibold text-slate-800 dark:text-slate-100">Configuración</h1>
 
-      <section className="mb-6 rounded-lg border border-slate-200 bg-white p-4">
-        <h2 className="mb-1 text-sm font-semibold text-slate-700">Ajustes de vuelo</h2>
-        <p className="mb-3 text-xs text-slate-500">Se aplican de inmediato — no hace falta redeployar.</p>
+      <section className={`mb-6 ${cardClass}`}>
+        <h2 className="mb-1 text-sm font-semibold text-slate-700 dark:text-slate-200">Ajustes de vuelo</h2>
+        <p className="mb-3 text-xs text-slate-500 dark:text-slate-400">
+          Se aplican de inmediato — no hace falta redeployar.
+        </p>
         {!settings ? (
-          <div className="text-sm text-gray-500">Cargando...</div>
+          <div className="text-sm text-gray-500 dark:text-slate-400">Cargando...</div>
         ) : (
           <div className="grid grid-cols-3 gap-4">
             <div>
-              <label className="mb-1 block text-xs text-slate-600">Altura de vuelo por defecto (m)</label>
+              <label className={labelClass}>Altura de vuelo por defecto (m)</label>
               <input
                 type="number"
                 min={1}
                 disabled={!isAdmin}
                 value={settings.default_altitude_m}
                 onChange={(e) => updateSettingField('default_altitude_m', Number(e.target.value))}
-                className="w-full rounded border border-slate-300 px-2 py-1.5 text-sm disabled:bg-slate-50 disabled:text-slate-500"
+                className={inputClass}
               />
             </div>
             <div>
-              <label className="mb-1 block text-xs text-slate-600">Espera de descarga en destino (s)</label>
+              <label className={labelClass}>Espera de descarga en destino (s)</label>
               <input
                 type="number"
                 min={0}
                 disabled={!isAdmin}
                 value={settings.discharge_seconds}
                 onChange={(e) => updateSettingField('discharge_seconds', Number(e.target.value))}
-                className="w-full rounded border border-slate-300 px-2 py-1.5 text-sm disabled:bg-slate-50 disabled:text-slate-500"
+                className={inputClass}
               />
             </div>
             <div>
-              <label className="mb-1 block text-xs text-slate-600">Consumo de batería (%/min, simulación)</label>
+              <label className={labelClass}>Consumo de batería (%/min, simulación)</label>
               <input
                 type="number"
                 min={0}
@@ -225,11 +235,11 @@ export function ConfigPage() {
                 disabled={!isAdmin}
                 value={settings.battery_drain_pct_per_min}
                 onChange={(e) => updateSettingField('battery_drain_pct_per_min', Number(e.target.value))}
-                className="w-full rounded border border-slate-300 px-2 py-1.5 text-sm disabled:bg-slate-50 disabled:text-slate-500"
+                className={inputClass}
               />
             </div>
             <div>
-              <label className="mb-1 block text-xs text-slate-600">Reserva mínima de batería (%)</label>
+              <label className={labelClass}>Reserva mínima de batería (%)</label>
               <input
                 type="number"
                 min={0}
@@ -237,22 +247,22 @@ export function ConfigPage() {
                 disabled={!isAdmin}
                 value={settings.low_battery_reserve_pct}
                 onChange={(e) => updateSettingField('low_battery_reserve_pct', Number(e.target.value))}
-                className="w-full rounded border border-slate-300 px-2 py-1.5 text-sm disabled:bg-slate-50 disabled:text-slate-500"
+                className={inputClass}
               />
             </div>
             <div>
-              <label className="mb-1 block text-xs text-slate-600">Viento máximo para despachar (km/h)</label>
+              <label className={labelClass}>Viento máximo para despachar (km/h)</label>
               <input
                 type="number"
                 min={0}
                 disabled={!isAdmin}
                 value={settings.max_wind_kmh}
                 onChange={(e) => updateSettingField('max_wind_kmh', Number(e.target.value))}
-                className="w-full rounded border border-slate-300 px-2 py-1.5 text-sm disabled:bg-slate-50 disabled:text-slate-500"
+                className={inputClass}
               />
             </div>
             <div>
-              <label className="mb-1 block text-xs text-slate-600">Precipitación máxima para despachar (mm)</label>
+              <label className={labelClass}>Precipitación máxima para despachar (mm)</label>
               <input
                 type="number"
                 min={0}
@@ -260,11 +270,11 @@ export function ConfigPage() {
                 disabled={!isAdmin}
                 value={settings.max_precipitation_mm}
                 onChange={(e) => updateSettingField('max_precipitation_mm', Number(e.target.value))}
-                className="w-full rounded border border-slate-300 px-2 py-1.5 text-sm disabled:bg-slate-50 disabled:text-slate-500"
+                className={inputClass}
               />
             </div>
             <div>
-              <label className="mb-1 block text-xs text-slate-600">Velocidad de carga (%/min)</label>
+              <label className={labelClass}>Velocidad de carga (%/min)</label>
               <input
                 type="number"
                 min={0}
@@ -272,108 +282,89 @@ export function ConfigPage() {
                 disabled={!isAdmin}
                 value={settings.battery_charge_pct_per_min}
                 onChange={(e) => updateSettingField('battery_charge_pct_per_min', Number(e.target.value))}
-                className="w-full rounded border border-slate-300 px-2 py-1.5 text-sm disabled:bg-slate-50 disabled:text-slate-500"
+                className={inputClass}
               />
             </div>
           </div>
         )}
         {isAdmin ? (
           <div className="mt-3 flex items-center gap-3">
-            <button
-              onClick={handleSaveSettings}
-              disabled={!settings || settingsSaving}
-              className="rounded bg-slate-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-50"
-            >
+            <button onClick={handleSaveSettings} disabled={!settings || settingsSaving} className={primaryButtonClass}>
               {settingsSaving ? 'Guardando...' : 'Guardar ajustes'}
             </button>
-            {settingsSaved && <span className="text-sm text-emerald-600">Guardado — ya está activo.</span>}
+            {settingsSaved && (
+              <span className="text-sm text-emerald-600 dark:text-emerald-400">Guardado — ya está activo.</span>
+            )}
           </div>
         ) : (
-          <p className="mt-3 text-xs text-slate-400">Solo un administrador puede cambiar estos ajustes.</p>
+          <p className="mt-3 text-xs text-slate-400 dark:text-slate-500">
+            Solo un administrador puede cambiar estos ajustes.
+          </p>
         )}
       </section>
 
       <section>
         <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-slate-700">Flota de drones</h2>
+          <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-200">Flota de drones</h2>
           {isAdmin && !showForm && (
-            <button
-              onClick={() => setShowForm(true)}
-              className="rounded bg-slate-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-800"
-            >
+            <button onClick={() => setShowForm(true)} className={primaryButtonClass}>
               Nuevo dron
             </button>
           )}
         </div>
 
         {canEditDrones && showForm && (
-          <div className="mb-4 max-w-lg rounded-lg border border-slate-200 bg-white p-4">
-            <h3 className="mb-2 text-sm font-semibold text-slate-700">
+          <div className={`mb-4 max-w-lg ${cardClass}`}>
+            <h3 className="mb-2 text-sm font-semibold text-slate-700 dark:text-slate-200">
               {editingId ? 'Editar dron' : 'Nuevo dron'}
             </h3>
-            <label className="mb-1 block text-xs text-slate-600">Nombre</label>
-            <input
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              className="mb-3 w-full rounded border border-slate-300 px-2 py-1.5 text-sm"
-            />
+            <label className={labelClass}>Nombre</label>
+            <input value={name} onChange={(e) => setName(e.target.value)} className={`mb-3 ${inputClass}`} />
             <div className="mb-3 grid grid-cols-2 gap-3">
               <div>
-                <label className="mb-1 block text-xs text-slate-600">N° de serie</label>
-                <input
-                  value={serialNumber}
-                  onChange={(e) => setSerialNumber(e.target.value)}
-                  className="w-full rounded border border-slate-300 px-2 py-1.5 text-sm"
-                />
+                <label className={labelClass}>N° de serie</label>
+                <input value={serialNumber} onChange={(e) => setSerialNumber(e.target.value)} className={inputClass} />
               </div>
               <div>
-                <label className="mb-1 block text-xs text-slate-600">Modelo</label>
-                <input
-                  value={model}
-                  onChange={(e) => setModel(e.target.value)}
-                  className="w-full rounded border border-slate-300 px-2 py-1.5 text-sm"
-                />
+                <label className={labelClass}>Modelo</label>
+                <input value={model} onChange={(e) => setModel(e.target.value)} className={inputClass} />
               </div>
             </div>
             <div className="mb-3 grid grid-cols-2 gap-3">
               <div>
-                <label className="mb-1 block text-xs text-slate-600">Velocidad máx. (m/s)</label>
+                <label className={labelClass}>Velocidad máx. (m/s)</label>
                 <input
                   type="number"
                   min={0}
                   value={maxSpeedMps}
                   onChange={(e) => setMaxSpeedMps(e.target.value)}
                   placeholder="15"
-                  className="w-full rounded border border-slate-300 px-2 py-1.5 text-sm"
+                  className={inputClass}
                 />
               </div>
               <div>
-                <label className="mb-1 block text-xs text-slate-600">Autonomía (km)</label>
+                <label className={labelClass}>Autonomía (km)</label>
                 <input
                   type="number"
                   min={0}
                   value={maxRangeKm}
                   onChange={(e) => setMaxRangeKm(e.target.value)}
                   placeholder="10"
-                  className="w-full rounded border border-slate-300 px-2 py-1.5 text-sm"
+                  className={inputClass}
                 />
               </div>
             </div>
-            <label className="mb-1 block text-xs text-slate-600">Intervalo de mantención (horas de vuelo)</label>
+            <label className={labelClass}>Intervalo de mantención (horas de vuelo)</label>
             <input
               type="number"
               min={1}
               value={maintenanceIntervalHours}
               onChange={(e) => setMaintenanceIntervalHours(e.target.value)}
               placeholder="100"
-              className="mb-3 w-full rounded border border-slate-300 px-2 py-1.5 text-sm"
+              className={`mb-3 ${inputClass}`}
             />
-            <label className="mb-1 block text-xs text-slate-600">Base de origen</label>
-            <select
-              value={homeBaseId}
-              onChange={(e) => setHomeBaseId(e.target.value)}
-              className="mb-3 w-full rounded border border-slate-300 px-2 py-1.5 text-sm"
-            >
+            <label className={labelClass}>Base de origen</label>
+            <select value={homeBaseId} onChange={(e) => setHomeBaseId(e.target.value)} className={`mb-3 ${inputClass}`}>
               <option value="">{editingId ? 'Sin cambios' : 'Elige una base...'}</option>
               {bases.map((b) => (
                 <option key={b.id} value={b.id}>
@@ -382,22 +373,18 @@ export function ConfigPage() {
               ))}
             </select>
             {bases.length === 0 && (
-              <p className="mb-3 text-xs text-amber-600">
+              <p className="mb-3 text-xs text-amber-600 dark:text-amber-400">
                 Todavía no hay bases creadas — anda a "Bases" y crea una primero.
               </p>
             )}
-            {formError && <div className="mb-3 text-sm text-red-600">{formError}</div>}
+            {formError && <div className="mb-3 text-sm text-red-600 dark:text-red-400">{formError}</div>}
             <div className="flex gap-2">
-              <button
-                onClick={handleSubmitDrone}
-                disabled={submitting}
-                className="rounded bg-slate-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-50"
-              >
+              <button onClick={handleSubmitDrone} disabled={submitting} className={primaryButtonClass}>
                 {submitting ? 'Guardando...' : editingId ? 'Guardar cambios' : 'Guardar dron'}
               </button>
               <button
                 onClick={resetForm}
-                className="rounded border border-slate-300 px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50"
+                className="rounded border border-slate-300 px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-800"
               >
                 Cancelar
               </button>
@@ -405,13 +392,13 @@ export function ConfigPage() {
           </div>
         )}
 
-        {loading && <div className="text-sm text-gray-500">Cargando drones...</div>}
-        {error && <div className="text-sm text-red-600">Error: {error}</div>}
-        {rowError && <div className="mb-3 text-sm text-red-600">{rowError}</div>}
+        {loading && <div className="text-sm text-gray-500 dark:text-slate-400">Cargando drones...</div>}
+        {error && <div className="text-sm text-red-600 dark:text-red-400">Error: {error}</div>}
+        {rowError && <div className="mb-3 text-sm text-red-600 dark:text-red-400">{rowError}</div>}
         {!loading && !error && (
-          <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
-            <table className="w-full text-left text-sm">
-              <thead className="bg-slate-50 text-xs uppercase text-slate-500">
+          <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
+            <table className="w-full text-left text-sm text-slate-700 dark:text-slate-300">
+              <thead className="bg-slate-50 text-xs uppercase text-slate-500 dark:bg-slate-800 dark:text-slate-400">
                 <tr>
                   <th className="px-4 py-2">Nombre</th>
                   <th className="px-4 py-2">N° de serie</th>
@@ -423,7 +410,7 @@ export function ConfigPage() {
                   <th className="px-4 py-2">Acciones</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                 {drones.map((d) => {
                   const busy = busyId === d.id;
                   const canDelete = d.status === 'idle';
@@ -432,16 +419,16 @@ export function ConfigPage() {
                   const maintenanceDue = flightHours >= Number(d.maintenance_interval_hours);
                   return (
                     <tr key={d.id}>
-                      <td className="px-4 py-2 font-medium text-slate-800">{d.name}</td>
-                      <td className="px-4 py-2 text-slate-600">{d.serial_number ?? '—'}</td>
-                      <td className="px-4 py-2 text-slate-600">{d.model ?? '—'}</td>
-                      <td className="px-4 py-2 uppercase text-slate-500">{d.status}</td>
-                      <td className="px-4 py-2 text-slate-600">{Number(d.max_speed_mps)} m/s</td>
-                      <td className="px-4 py-2 text-slate-600">{Number(d.max_range_km)} km</td>
-                      <td className="px-4 py-2 text-slate-600">
+                      <td className="px-4 py-2 font-medium text-slate-800 dark:text-slate-100">{d.name}</td>
+                      <td className="px-4 py-2 text-slate-600 dark:text-slate-400">{d.serial_number ?? '—'}</td>
+                      <td className="px-4 py-2 text-slate-600 dark:text-slate-400">{d.model ?? '—'}</td>
+                      <td className="px-4 py-2 uppercase text-slate-500 dark:text-slate-400">{d.status}</td>
+                      <td className="px-4 py-2 text-slate-600 dark:text-slate-400">{Number(d.max_speed_mps)} m/s</td>
+                      <td className="px-4 py-2 text-slate-600 dark:text-slate-400">{Number(d.max_range_km)} km</td>
+                      <td className="px-4 py-2 text-slate-600 dark:text-slate-400">
                         {flightHours.toFixed(1)} / {Number(d.maintenance_interval_hours).toFixed(0)} h
                         {maintenanceDue && (
-                          <span className="ml-1.5 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">
+                          <span className="ml-1.5 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700 dark:bg-amber-900/50 dark:text-amber-300">
                             Mantención
                           </span>
                         )}
@@ -449,11 +436,7 @@ export function ConfigPage() {
                       <td className="px-4 py-2">
                         <div className="flex flex-wrap gap-2">
                           {canEditDrones && (
-                            <button
-                              disabled={busy}
-                              onClick={() => startEdit(d)}
-                              className="rounded border border-slate-300 px-2 py-1 text-xs text-slate-600 hover:bg-slate-50 disabled:opacity-50"
-                            >
+                            <button disabled={busy} onClick={() => startEdit(d)} className={secondaryButtonClass}>
                               Editar
                             </button>
                           )}
@@ -461,7 +444,7 @@ export function ConfigPage() {
                             <button
                               disabled={busy}
                               onClick={() => handleReturnToHome(d.id)}
-                              className="rounded bg-blue-600 px-2 py-1 text-xs font-medium text-white hover:bg-blue-500 disabled:opacity-50"
+                              className="rounded bg-brand px-2 py-1 text-xs font-medium text-white hover:bg-brand-dark disabled:opacity-50"
                             >
                               Volver a base
                             </button>
@@ -476,11 +459,7 @@ export function ConfigPage() {
                             </button>
                           )}
                           {isAdmin && canDelete && (
-                            <button
-                              disabled={busy}
-                              onClick={() => handleDeleteDrone(d.id)}
-                              className="rounded border border-slate-300 px-2 py-1 text-xs text-slate-600 hover:bg-slate-50 disabled:opacity-50"
-                            >
+                            <button disabled={busy} onClick={() => handleDeleteDrone(d.id)} className={secondaryButtonClass}>
                               Eliminar
                             </button>
                           )}
@@ -491,7 +470,7 @@ export function ConfigPage() {
                 })}
                 {drones.length === 0 && (
                   <tr>
-                    <td colSpan={8} className="px-4 py-4 text-center text-slate-400">
+                    <td colSpan={8} className="px-4 py-4 text-center text-slate-400 dark:text-slate-500">
                       No hay drones todavía.
                     </td>
                   </tr>

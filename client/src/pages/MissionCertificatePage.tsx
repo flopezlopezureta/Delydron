@@ -27,22 +27,25 @@ export function MissionCertificatePage() {
       .catch((err) => setError(err instanceof Error ? err.message : 'No se pudo cargar el certificado.'));
   }, [id]);
 
-  if (error) return <div className="p-4 text-sm text-red-600">Error: {error}</div>;
-  if (!cert) return <div className="p-4 text-sm text-gray-500">Cargando certificado...</div>;
+  if (error) return <div className="p-4 text-sm text-red-600 dark:text-red-400">Error: {error}</div>;
+  if (!cert) return <div className="p-4 text-sm text-gray-500 dark:text-slate-400">Cargando certificado...</div>;
 
   return (
     <div className="mx-auto max-w-2xl p-6 print:p-0">
       <div className="mb-4 flex items-center justify-between print:hidden">
-        <h1 className="text-lg font-semibold text-slate-800">Certificado de misión</h1>
+        <h1 className="text-lg font-semibold text-slate-800 dark:text-slate-100">Certificado de misión</h1>
         <button
           onClick={() => window.print()}
-          className="rounded bg-slate-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-800"
+          className="rounded bg-brand px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-dark"
         >
           Imprimir / Guardar como PDF
         </button>
       </div>
 
-      <div className="rounded-lg border border-slate-200 bg-white p-6 print:border-0 print:shadow-none">
+      {/* Always light, even in dark mode — this is a printable/PDF document
+          (window.print()), not app chrome, so it has to read like a normal
+          white certificate regardless of the viewer's theme preference. */}
+      <div className="rounded-lg border border-slate-200 bg-white p-6 text-slate-800 print:border-0 print:shadow-none">
         <div className="mb-4 flex items-start justify-between border-b border-slate-200 pb-4">
           <div>
             <div className="text-xl font-semibold text-slate-800">Delydrone</div>

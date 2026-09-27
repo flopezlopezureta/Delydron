@@ -86,26 +86,26 @@ export function AddressAutocomplete({ value, onChange, onSelect, placeholder }: 
           }
         }}
         placeholder={placeholder}
-        className="w-full rounded border border-slate-300 px-2 py-1.5 text-sm"
+        className="w-full rounded border border-slate-300 bg-white px-2 py-1.5 text-sm text-slate-800 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
       />
 
-      {loading && <p className="mt-1 text-xs text-slate-400">Buscando...</p>}
-      {!loading && error && <p className="mt-1 text-xs text-amber-600">{error}</p>}
+      {loading && <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">Buscando...</p>}
+      {!loading && error && <p className="mt-1 text-xs text-amber-600 dark:text-amber-400">{error}</p>}
       {!loading && !error && numberLikelyMissing && (
-        <p className="mt-1 text-xs text-amber-600">
+        <p className="mt-1 text-xs text-amber-600 dark:text-amber-400">
           Puede que no hayamos encontrado el número exacto — revisa el pin en el mapa y ajústalo si hace falta.
         </p>
       )}
 
       {open && suggestions.length > 0 && (
-        <ul className="absolute z-10 mt-1 max-h-56 w-full overflow-y-auto rounded border border-slate-200 bg-white shadow-lg">
+        <ul className="absolute z-10 mt-1 max-h-56 w-full overflow-y-auto rounded border border-slate-200 bg-white shadow-lg dark:border-slate-700 dark:bg-slate-800">
           {suggestions.map((s, i) => (
             <li key={`${s.lat},${s.lon},${i}`}>
               <button
                 type="button"
                 onMouseDown={(e) => e.preventDefault()} // keeps the input's onBlur from closing this before the click registers
                 onClick={() => handleSelect(s)}
-                className="block w-full px-2 py-1.5 text-left text-sm hover:bg-slate-50"
+                className="block w-full px-2 py-1.5 text-left text-sm text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-700"
               >
                 {s.placeName}
               </button>

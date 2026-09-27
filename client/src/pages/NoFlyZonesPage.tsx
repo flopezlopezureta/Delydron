@@ -9,6 +9,10 @@ import type { NoFlyZone } from '../types';
 
 const DEFAULT_CENTER: [number, number] = [-33.4489, -70.6693];
 const DEFAULT_RADIUS_M = 500;
+const inputClass =
+  'w-full rounded border border-slate-300 bg-white px-2 py-1.5 text-sm text-slate-800 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100';
+const secondaryButtonClass =
+  'rounded border border-slate-300 px-2 py-1 text-xs text-slate-600 hover:bg-slate-50 disabled:opacity-50 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-800';
 
 export function NoFlyZonesPage() {
   const { user } = useAuth();
@@ -107,23 +111,23 @@ export function NoFlyZonesPage() {
   return (
     <div className="h-full overflow-y-auto p-4">
       <div className="mb-1 flex items-center justify-between">
-        <h1 className="text-lg font-semibold text-slate-800">Zonas restringidas</h1>
+        <h1 className="text-lg font-semibold text-slate-800 dark:text-slate-100">Zonas restringidas</h1>
         {isAdmin && !showForm && (
           <button
             onClick={() => setShowForm(true)}
-            className="rounded bg-slate-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-800"
+            className="rounded bg-brand px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-dark"
           >
             Nueva zona
           </button>
         )}
       </div>
-      <p className="mb-4 text-xs text-slate-500">
+      <p className="mb-4 text-xs text-slate-500 dark:text-slate-400">
         Ninguna misión puede guardarse ni despacharse si su ruta pasa dentro del radio de una zona activa.
       </p>
 
       {isAdmin && showForm && (
-        <div className="mb-4 flex gap-4 rounded-lg border border-slate-200 bg-white p-4">
-          <div className="h-80 w-96 shrink-0 overflow-hidden rounded border border-slate-200">
+        <div className="mb-4 flex gap-4 rounded-lg border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
+          <div className="h-80 w-96 shrink-0 overflow-hidden rounded border border-slate-200 dark:border-slate-700">
             <NoFlyZonePickerMap
               center={point ? [point.lat, point.lon] : DEFAULT_CENTER}
               point={point}
@@ -132,17 +136,17 @@ export function NoFlyZonesPage() {
             />
           </div>
           <div className="flex flex-1 flex-col">
-            <h2 className="mb-2 text-sm font-semibold text-slate-700">
+            <h2 className="mb-2 text-sm font-semibold text-slate-700 dark:text-slate-200">
               {editingId ? 'Editar zona' : 'Nueva zona'}
             </h2>
-            <label className="mb-1 block text-xs text-slate-600">Nombre</label>
+            <label className="mb-1 block text-xs text-slate-600 dark:text-slate-400">Nombre</label>
             <input
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="Ej: Aeropuerto Tobalaba"
-              className="mb-3 w-full rounded border border-slate-300 px-2 py-1.5 text-sm"
+              className={`mb-3 ${inputClass}`}
             />
-            <label className="mb-1 block text-xs text-slate-600">Buscar dirección</label>
+            <label className="mb-1 block text-xs text-slate-600 dark:text-slate-400">Buscar dirección</label>
             <AddressAutocomplete
               value={addressQuery}
               onChange={setAddressQuery}
@@ -150,37 +154,33 @@ export function NoFlyZonesPage() {
               placeholder="Ej: Aeropuerto Arturo Merino Benítez"
             />
             <div className="mb-3" />
-            <label className="mb-1 block text-xs text-slate-600">Radio (metros)</label>
+            <label className="mb-1 block text-xs text-slate-600 dark:text-slate-400">Radio (metros)</label>
             <input
               type="number"
               min={1}
               value={radiusM}
               onChange={(e) => setRadiusM(e.target.value)}
-              className="mb-3 w-full rounded border border-slate-300 px-2 py-1.5 text-sm"
+              className={`mb-3 ${inputClass}`}
             />
-            <label className="mb-1 block text-xs text-slate-600">Notas (opcional)</label>
-            <input
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              className="mb-3 w-full rounded border border-slate-300 px-2 py-1.5 text-sm"
-            />
-            <p className="mb-3 text-xs text-slate-500">
+            <label className="mb-1 block text-xs text-slate-600 dark:text-slate-400">Notas (opcional)</label>
+            <input value={notes} onChange={(e) => setNotes(e.target.value)} className={`mb-3 ${inputClass}`} />
+            <p className="mb-3 text-xs text-slate-500 dark:text-slate-400">
               {point
                 ? `Centro: ${point.lat.toFixed(5)}, ${point.lon.toFixed(5)}`
                 : 'Busca una dirección o haz clic en el mapa para ubicar el centro.'}
             </p>
-            {formError && <div className="mb-3 text-sm text-red-600">{formError}</div>}
+            {formError && <div className="mb-3 text-sm text-red-600 dark:text-red-400">{formError}</div>}
             <div className="mt-auto flex gap-2">
               <button
                 onClick={handleSubmit}
                 disabled={submitting}
-                className="rounded bg-slate-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-50"
+                className="rounded bg-brand px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-dark disabled:opacity-50"
               >
                 {submitting ? 'Guardando...' : editingId ? 'Guardar cambios' : 'Guardar zona'}
               </button>
               <button
                 onClick={resetForm}
-                className="rounded border border-slate-300 px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50"
+                className="rounded border border-slate-300 px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-800"
               >
                 Cancelar
               </button>
@@ -189,13 +189,13 @@ export function NoFlyZonesPage() {
         </div>
       )}
 
-      {loading && <div className="text-sm text-gray-500">Cargando zonas...</div>}
-      {error && <div className="text-sm text-red-600">Error: {error}</div>}
-      {rowError && <div className="mb-3 text-sm text-red-600">{rowError}</div>}
+      {loading && <div className="text-sm text-gray-500 dark:text-slate-400">Cargando zonas...</div>}
+      {error && <div className="text-sm text-red-600 dark:text-red-400">Error: {error}</div>}
+      {rowError && <div className="mb-3 text-sm text-red-600 dark:text-red-400">{rowError}</div>}
       {!loading && !error && (
-        <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
-          <table className="w-full text-left text-sm">
-            <thead className="bg-slate-50 text-xs uppercase text-slate-500">
+        <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
+          <table className="w-full text-left text-sm text-slate-700 dark:text-slate-300">
+            <thead className="bg-slate-50 text-xs uppercase text-slate-500 dark:bg-slate-800 dark:text-slate-400">
               <tr>
                 <th className="px-4 py-2">Nombre</th>
                 <th className="px-4 py-2">Radio</th>
@@ -205,58 +205,56 @@ export function NoFlyZonesPage() {
                 <th className="px-4 py-2">Acciones</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
               {zones.map((z) => (
                 <tr key={z.id}>
-                  <td className="px-4 py-2 font-medium text-slate-800">{z.name}</td>
-                  <td className="px-4 py-2 text-slate-600">{Number(z.radius_m).toFixed(0)} m</td>
-                  <td className="px-4 py-2 font-mono text-xs text-slate-500">
+                  <td className="px-4 py-2 font-medium text-slate-800 dark:text-slate-100">{z.name}</td>
+                  <td className="px-4 py-2 text-slate-600 dark:text-slate-400">{Number(z.radius_m).toFixed(0)} m</td>
+                  <td className="px-4 py-2 font-mono text-xs text-slate-500 dark:text-slate-400">
                     {z.lat.toFixed(5)}, {z.lon.toFixed(5)}
                   </td>
                   <td className="px-4 py-2">
                     <span
                       className={`rounded-full px-2 py-0.5 text-xs font-medium ${
-                        z.active ? 'bg-red-100 text-red-700' : 'bg-slate-100 text-slate-500'
+                        z.active
+                          ? 'bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-300'
+                          : 'bg-slate-100 text-slate-500 dark:bg-slate-700/60 dark:text-slate-400'
                       }`}
                     >
                       {z.active ? 'Activa' : 'Inactiva'}
                     </span>
                   </td>
-                  <td className="px-4 py-2 text-slate-500">{z.notes ?? '—'}</td>
+                  <td className="px-4 py-2 text-slate-500 dark:text-slate-400">{z.notes ?? '—'}</td>
                   <td className="px-4 py-2">
                     {isAdmin ? (
                       <div className="flex flex-wrap gap-2">
-                        <button
-                          disabled={busyId === z.id}
-                          onClick={() => startEdit(z)}
-                          className="rounded border border-slate-300 px-2 py-1 text-xs text-slate-600 hover:bg-slate-50 disabled:opacity-50"
-                        >
+                        <button disabled={busyId === z.id} onClick={() => startEdit(z)} className={secondaryButtonClass}>
                           Editar
                         </button>
                         <button
                           disabled={busyId === z.id}
                           onClick={() => handleToggleActive(z)}
-                          className="rounded border border-slate-300 px-2 py-1 text-xs text-slate-600 hover:bg-slate-50 disabled:opacity-50"
+                          className={secondaryButtonClass}
                         >
                           {z.active ? 'Desactivar' : 'Activar'}
                         </button>
                         <button
                           disabled={busyId === z.id}
                           onClick={() => handleDelete(z.id)}
-                          className="rounded border border-slate-300 px-2 py-1 text-xs text-slate-600 hover:bg-slate-50 disabled:opacity-50"
+                          className={secondaryButtonClass}
                         >
                           Eliminar
                         </button>
                       </div>
                     ) : (
-                      <span className="text-slate-300">—</span>
+                      <span className="text-slate-300 dark:text-slate-600">—</span>
                     )}
                   </td>
                 </tr>
               ))}
               {zones.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="px-4 py-4 text-center text-slate-400">
+                  <td colSpan={6} className="px-4 py-4 text-center text-slate-400 dark:text-slate-500">
                     No hay zonas restringidas todavía.
                   </td>
                 </tr>

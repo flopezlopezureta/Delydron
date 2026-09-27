@@ -13,6 +13,9 @@ import { MAX_DESTINATIONS_PER_MISSION, type Waypoint } from '../types';
 
 const DEFAULT_CENTER: [number, number] = [-33.4489, -70.6693];
 const FALLBACK_ALT_M = 60; // used only until /api/settings responds
+const labelClass = 'mb-1 block text-xs text-slate-600 dark:text-slate-400';
+const fieldClass =
+  'w-full rounded border border-slate-300 bg-white px-2 py-1.5 text-sm text-slate-800 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100';
 
 export function MissionPlannerPage() {
   const navigate = useNavigate();
@@ -186,7 +189,7 @@ export function MissionPlannerPage() {
   }
 
   if (loadingSource) {
-    return <div className="p-4 text-sm text-slate-500">Cargando misión...</div>;
+    return <div className="p-4 text-sm text-slate-500 dark:text-slate-400">Cargando misión...</div>;
   }
 
   const title = editId ? 'Editar misión' : repeatFrom ? 'Repetir misión' : 'Planificador de misión';
@@ -208,17 +211,13 @@ export function MissionPlannerPage() {
         />
       </div>
 
-      <aside className="flex w-80 shrink-0 flex-col overflow-y-auto border-l border-slate-200 bg-white p-4">
-        <h1 className="mb-1 text-sm font-semibold text-slate-800">{title}</h1>
-        <p className="mb-4 text-xs text-slate-500">{subtitle}</p>
+      <aside className="flex w-80 shrink-0 flex-col overflow-y-auto border-l border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
+        <h1 className="mb-1 text-sm font-semibold text-slate-800 dark:text-slate-100">{title}</h1>
+        <p className="mb-4 text-xs text-slate-500 dark:text-slate-400">{subtitle}</p>
 
         <div className="mb-3">
-          <label className="mb-1 block text-xs text-slate-600">Dron (opcional al crear)</label>
-          <select
-            value={droneId}
-            onChange={(e) => setDroneId(e.target.value)}
-            className="w-full rounded border border-slate-300 px-2 py-1.5 text-sm"
-          >
+          <label className={labelClass}>Dron (opcional al crear)</label>
+          <select value={droneId} onChange={(e) => setDroneId(e.target.value)} className={fieldClass}>
             <option value="">Sin asignar</option>
             {idleDrones.map((d) => (
               <option key={d.id} value={d.id}>
@@ -229,24 +228,20 @@ export function MissionPlannerPage() {
         </div>
 
         <div className="mb-3">
-          <label className="mb-1 block text-xs text-slate-600">Prioridad (1-5)</label>
+          <label className={labelClass}>Prioridad (1-5)</label>
           <input
             type="number"
             min={1}
             max={5}
             value={priority}
             onChange={(e) => setPriority(Number(e.target.value))}
-            className="w-full rounded border border-slate-300 px-2 py-1.5 text-sm"
+            className={fieldClass}
           />
         </div>
 
         <div className="mb-3">
-          <label className="mb-1 block text-xs text-slate-600">Base de retiro (BDD)</label>
-          <select
-            value={pickupBaseId}
-            onChange={(e) => handlePickupBaseChange(e.target.value)}
-            className="w-full rounded border border-slate-300 px-2 py-1.5 text-sm"
-          >
+          <label className={labelClass}>Base de retiro (BDD)</label>
+          <select value={pickupBaseId} onChange={(e) => handlePickupBaseChange(e.target.value)} className={fieldClass}>
             <option value="">Sin base</option>
             {pickupBases.map((b) => (
               <option key={b.id} value={b.id}>
@@ -257,35 +252,27 @@ export function MissionPlannerPage() {
         </div>
 
         <div className="mb-3">
-          <label className="mb-1 block text-xs text-slate-600">Dirección de retiro</label>
-          <input
-            value={pickupAddress}
-            onChange={(e) => setPickupAddress(e.target.value)}
-            className="w-full rounded border border-slate-300 px-2 py-1.5 text-sm"
-          />
+          <label className={labelClass}>Dirección de retiro</label>
+          <input value={pickupAddress} onChange={(e) => setPickupAddress(e.target.value)} className={fieldClass} />
         </div>
 
         <div className="mb-3">
-          <label className="mb-1 block text-xs text-slate-600">Agregar destino por dirección</label>
+          <label className={labelClass}>Agregar destino por dirección</label>
           <AddressAutocomplete
             value={dropoffAddress}
             onChange={setDropoffAddress}
             onSelect={handleSelectDropoffSuggestion}
             placeholder="Ej: Los Cerezos 5799, Peñalolén"
           />
-          <p className="mt-1 text-xs text-slate-400">
+          <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">
             Elige una sugerencia de la lista para agregarla como destino, o marca el punto directo en el mapa.
           </p>
         </div>
 
         {pedBases.length > 0 && (
           <div className="mb-3">
-            <label className="mb-1 block text-xs text-slate-600">Agregar destino desde un PED existente</label>
-            <select
-              value=""
-              onChange={(e) => handleSelectPed(e.target.value)}
-              className="w-full rounded border border-slate-300 px-2 py-1.5 text-sm"
-            >
+            <label className={labelClass}>Agregar destino desde un PED existente</label>
+            <select value="" onChange={(e) => handleSelectPed(e.target.value)} className={fieldClass}>
               <option value="">Elegir punto de entrega fijo...</option>
               {pedBases.map((b) => (
                 <option key={b.id} value={b.id}>
@@ -297,12 +284,8 @@ export function MissionPlannerPage() {
         )}
 
         <div className="mb-3">
-          <label className="mb-1 block text-xs text-slate-600">Base de retorno (vacío = base propia del dron)</label>
-          <select
-            value={returnBaseId}
-            onChange={(e) => setReturnBaseId(e.target.value)}
-            className="w-full rounded border border-slate-300 px-2 py-1.5 text-sm"
-          >
+          <label className={labelClass}>Base de retorno (vacío = base propia del dron)</label>
+          <select value={returnBaseId} onChange={(e) => setReturnBaseId(e.target.value)} className={fieldClass}>
             <option value="">Base propia del dron</option>
             {returnableBases.map((b) => (
               <option key={b.id} value={b.id}>
@@ -314,15 +297,11 @@ export function MissionPlannerPage() {
         </div>
 
         <div className="mb-4">
-          <label className="mb-1 block text-xs text-slate-600">Descripción de la carga</label>
-          <input
-            value={payloadDesc}
-            onChange={(e) => setPayloadDesc(e.target.value)}
-            className="w-full rounded border border-slate-300 px-2 py-1.5 text-sm"
-          />
+          <label className={labelClass}>Descripción de la carga</label>
+          <input value={payloadDesc} onChange={(e) => setPayloadDesc(e.target.value)} className={fieldClass} />
         </div>
 
-        <h2 className="mb-2 text-xs font-semibold uppercase text-slate-500">
+        <h2 className="mb-2 text-xs font-semibold uppercase text-slate-500 dark:text-slate-400">
           Destinos ({waypoints.length}/{MAX_DESTINATIONS_PER_MISSION})
         </h2>
         <div className="mb-4 flex-1">
@@ -335,19 +314,19 @@ export function MissionPlannerPage() {
           />
         </div>
 
-        {error && <div className="mb-3 text-sm text-red-600">{error}</div>}
+        {error && <div className="mb-3 text-sm text-red-600 dark:text-red-400">{error}</div>}
 
         <div className="flex gap-2">
           <button
             onClick={handleSubmit}
             disabled={submitting}
-            className="rounded bg-slate-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-50"
+            className="rounded bg-brand px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-dark disabled:opacity-50"
           >
             {submitting ? 'Guardando...' : editId ? 'Guardar cambios' : 'Crear misión'}
           </button>
           <button
             onClick={() => navigate('/missions')}
-            className="rounded border border-slate-300 px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50"
+            className="rounded border border-slate-300 px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-800"
           >
             Cancelar
           </button>

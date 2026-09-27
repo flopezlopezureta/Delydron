@@ -24,11 +24,17 @@ export function DashboardPage() {
   }, []);
 
   if (loading) {
-    return <div className="flex h-full items-center justify-center text-gray-500">Cargando flota...</div>;
+    return (
+      <div className="flex h-full items-center justify-center text-gray-500 dark:text-slate-400">
+        Cargando flota...
+      </div>
+    );
   }
 
   if (error) {
-    return <div className="flex h-full items-center justify-center text-red-600">Error: {error}</div>;
+    return (
+      <div className="flex h-full items-center justify-center text-red-600 dark:text-red-400">Error: {error}</div>
+    );
   }
 
   return (

@@ -14,6 +14,11 @@ interface MissionTableProps {
   onChanged: () => void;
 }
 
+const secondaryButtonClass =
+  'rounded border border-slate-300 px-2 py-1 text-xs text-slate-600 hover:bg-slate-50 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-800';
+const selectClass =
+  'rounded border border-slate-300 bg-white px-1.5 py-1 text-xs text-slate-700 disabled:opacity-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200';
+
 export function MissionTable({ missions, drones, bases, liveStatusById, onChanged }: MissionTableProps) {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -59,14 +64,18 @@ export function MissionTable({ missions, drones, bases, liveStatusById, onChange
   }
 
   if (missions.length === 0) {
-    return <div className="p-4 text-sm text-slate-400">No hay misiones todavía.</div>;
+    return <div className="p-4 text-sm text-slate-400 dark:text-slate-500">No hay misiones todavía.</div>;
   }
 
   return (
-    <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
-      {error && <div className="border-b border-red-100 bg-red-50 px-4 py-2 text-sm text-red-600">{error}</div>}
-      <table className="w-full text-left text-sm">
-        <thead className="bg-slate-50 text-xs uppercase text-slate-500">
+    <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
+      {error && (
+        <div className="border-b border-red-100 bg-red-50 px-4 py-2 text-sm text-red-600 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-400">
+          {error}
+        </div>
+      )}
+      <table className="w-full text-left text-sm text-slate-700 dark:text-slate-300">
+        <thead className="bg-slate-50 text-xs uppercase text-slate-500 dark:bg-slate-800 dark:text-slate-400">
           <tr>
             <th className="px-4 py-2">Código</th>
             <th className="px-4 py-2">Dron</th>
@@ -77,7 +86,7 @@ export function MissionTable({ missions, drones, bases, liveStatusById, onChange
             <th className="px-4 py-2">Acciones</th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-slate-100">
+        <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
           {missions.map((m) => {
             const status = liveStatusById[m.id]?.status ?? m.status;
             const canDispatch = ['draft', 'scheduled', 'assigned'].includes(status) && m.drone_id;
@@ -96,7 +105,7 @@ export function MissionTable({ missions, drones, bases, liveStatusById, onChange
                       disabled={busy}
                       value={m.drone_id ?? ''}
                       onChange={(e) => run(m.id, () => updateMission(m.id, { droneId: e.target.value || null }))}
-                      className="rounded border border-slate-300 px-1.5 py-1 text-xs disabled:opacity-50"
+                      className={selectClass}
                     >
                       <option value="">Sin asignar</option>
                       {idleDrones.map((d) => (
@@ -121,7 +130,7 @@ export function MissionTable({ missions, drones, bases, liveStatusById, onChange
                       onChange={(e) =>
                         run(m.id, () => updateMission(m.id, { returnBaseId: e.target.value || null }))
                       }
-                      className="rounded border border-slate-300 px-1.5 py-1 text-xs disabled:opacity-50"
+                      className={selectClass}
                     >
                       <option value="">Base propia del dron</option>
                       {returnableBases.map((b) => (
@@ -132,28 +141,27 @@ export function MissionTable({ missions, drones, bases, liveStatusById, onChange
                       ))}
                     </select>
                   ) : (
-                    <span className="text-slate-500">
+                    <span className="text-slate-500 dark:text-slate-400">
                       {m.return_base_id ? baseNameById[m.return_base_id] ?? m.return_base_id : 'Base propia del dron'}
                     </span>
                   )}
                 </td>
-                <td className="px-4 py-2 text-slate-500">{new Date(m.created_at).toLocaleString('es-CL')}</td>
+                <td className="px-4 py-2 text-slate-500 dark:text-slate-400">
+                  {new Date(m.created_at).toLocaleString('es-CL')}
+                </td>
                 <td className="px-4 py-2">
                   <div className="flex flex-wrap gap-2">
                     {canDispatch && (
                       <button
                         disabled={busy}
                         onClick={() => run(m.id, () => dispatchMission(m.id))}
-                        className="rounded bg-blue-600 px-2 py-1 text-xs font-medium text-white hover:bg-blue-500 disabled:opacity-50"
+                        className="rounded bg-brand px-2 py-1 text-xs font-medium text-white hover:bg-brand-dark disabled:opacity-50"
                       >
                         Despachar
                       </button>
                     )}
                     {canEdit && (
-                      <Link
-                        to={`/missions/new?editId=${m.id}`}
-                        className="rounded border border-slate-300 px-2 py-1 text-xs text-slate-600 hover:bg-slate-50"
-                      >
+                      <Link to={`/missions/new?editId=${m.id}`} className={secondaryButtonClass}>
                         Editar
                       </Link>
                     )}
@@ -167,10 +175,7 @@ export function MissionTable({ missions, drones, bases, liveStatusById, onChange
                       </button>
                     )}
                     {m.tracking_token && (
-                      <button
-                        onClick={() => setShareTarget(m)}
-                        className="rounded border border-slate-300 px-2 py-1 text-xs text-slate-600 hover:bg-slate-50"
-                      >
+                      <button onClick={() => setShareTarget(m)} className={secondaryButtonClass}>
                         Link de seguimiento
                       </button>
                     )}
@@ -178,7 +183,7 @@ export function MissionTable({ missions, drones, bases, liveStatusById, onChange
                       <button
                         disabled={busy}
                         onClick={() => run(m.id, () => deleteMission(m.id))}
-                        className="rounded border border-slate-300 px-2 py-1 text-xs text-slate-600 hover:bg-slate-50 disabled:opacity-50"
+                        className={`${secondaryButtonClass} disabled:opacity-50`}
                       >
                         Eliminar
                       </button>
@@ -196,7 +201,7 @@ export function MissionTable({ missions, drones, bases, liveStatusById, onChange
                         to={`/missions/${m.id}/certificate`}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="rounded border border-slate-300 px-2 py-1 text-xs text-slate-600 hover:bg-slate-50"
+                        className={secondaryButtonClass}
                       >
                         Certificado
                       </Link>

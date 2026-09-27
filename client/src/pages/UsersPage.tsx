@@ -9,6 +9,11 @@ import { ROLE_LABELS, type ManagedUser, type UserRole } from '../types';
 // already excluded from what a non-super_admin's user list returns.
 const ASSIGNABLE_ROLES: UserRole[] = ['admin', 'operator', 'technician', 'auxiliary'];
 const ALL_ROLES: UserRole[] = ['super_admin', ...ASSIGNABLE_ROLES];
+const labelClass = 'mb-1 block text-xs text-slate-600 dark:text-slate-400';
+const inputClass =
+  'w-full rounded border border-slate-300 bg-white px-2 py-1.5 text-sm text-slate-800 disabled:opacity-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100';
+const secondaryButtonClass =
+  'rounded border border-slate-300 px-2 py-1 text-xs text-slate-600 hover:bg-slate-50 disabled:opacity-50 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-800';
 
 export function UsersPage() {
   const { user: currentUser } = useAuth();
@@ -122,7 +127,7 @@ export function UsersPage() {
 
   if (currentUser && currentUser.role !== 'admin' && currentUser.role !== 'super_admin') {
     return (
-      <div className="p-4 text-sm text-slate-500">
+      <div className="p-4 text-sm text-slate-500 dark:text-slate-400">
         Esta sección es solo para administradores.
       </div>
     );
@@ -131,11 +136,11 @@ export function UsersPage() {
   return (
     <div className="h-full overflow-y-auto p-4">
       <div className="mb-4 flex items-center justify-between">
-        <h1 className="text-lg font-semibold text-slate-800">Usuarios</h1>
+        <h1 className="text-lg font-semibold text-slate-800 dark:text-slate-100">Usuarios</h1>
         {!showForm && (
           <button
             onClick={() => setShowForm(true)}
-            className="rounded bg-slate-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-800"
+            className="rounded bg-brand px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-dark"
           >
             Nuevo usuario
           </button>
@@ -143,38 +148,32 @@ export function UsersPage() {
       </div>
 
       {showForm && (
-        <div className="mb-4 max-w-lg rounded-lg border border-slate-200 bg-white p-4">
-          <h2 className="mb-2 text-sm font-semibold text-slate-700">
+        <div className="mb-4 max-w-lg rounded-lg border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
+          <h2 className="mb-2 text-sm font-semibold text-slate-700 dark:text-slate-200">
             {editingId ? 'Editar usuario' : 'Nuevo usuario'}
           </h2>
-          <label className="mb-1 block text-xs text-slate-600">Nombre completo</label>
-          <input
-            value={fullName}
-            onChange={(e) => setFullName(e.target.value)}
-            className="mb-3 w-full rounded border border-slate-300 px-2 py-1.5 text-sm"
-          />
-          <label className="mb-1 block text-xs text-slate-600">Email</label>
+          <label className={labelClass}>Nombre completo</label>
+          <input value={fullName} onChange={(e) => setFullName(e.target.value)} className={`mb-3 ${inputClass}`} />
+          <label className={labelClass}>Email</label>
           <input
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="mb-3 w-full rounded border border-slate-300 px-2 py-1.5 text-sm"
+            className={`mb-3 ${inputClass}`}
           />
-          <label className="mb-1 block text-xs text-slate-600">
-            Contraseña{editingId && ' (dejar en blanco para no cambiarla)'}
-          </label>
+          <label className={labelClass}>Contraseña{editingId && ' (dejar en blanco para no cambiarla)'}</label>
           <input
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="mb-3 w-full rounded border border-slate-300 px-2 py-1.5 text-sm"
+            className={`mb-3 ${inputClass}`}
           />
-          <label className="mb-1 block text-xs text-slate-600">Rol</label>
+          <label className={labelClass}>Rol</label>
           <select
             value={role}
             onChange={(e) => setRole(e.target.value as UserRole)}
             disabled={editingId === currentUser?.id}
-            className="mb-3 w-full rounded border border-slate-300 px-2 py-1.5 text-sm disabled:opacity-50"
+            className={`mb-3 ${inputClass}`}
           >
             {roleOptions.map((r) => (
               <option key={r} value={r}>
@@ -182,18 +181,18 @@ export function UsersPage() {
               </option>
             ))}
           </select>
-          {formError && <div className="mb-3 text-sm text-red-600">{formError}</div>}
+          {formError && <div className="mb-3 text-sm text-red-600 dark:text-red-400">{formError}</div>}
           <div className="flex gap-2">
             <button
               onClick={handleSubmit}
               disabled={submitting}
-              className="rounded bg-slate-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-50"
+              className="rounded bg-brand px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-dark disabled:opacity-50"
             >
               {submitting ? 'Guardando...' : 'Guardar usuario'}
             </button>
             <button
               onClick={resetForm}
-              className="rounded border border-slate-300 px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50"
+              className="rounded border border-slate-300 px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-800"
             >
               Cancelar
             </button>
@@ -201,12 +200,12 @@ export function UsersPage() {
         </div>
       )}
 
-      {loading && <div className="text-sm text-gray-500">Cargando usuarios...</div>}
-      {error && <div className="mb-3 text-sm text-red-600">{error}</div>}
+      {loading && <div className="text-sm text-gray-500 dark:text-slate-400">Cargando usuarios...</div>}
+      {error && <div className="mb-3 text-sm text-red-600 dark:text-red-400">{error}</div>}
       {!loading && (
-        <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
-          <table className="w-full text-left text-sm">
-            <thead className="bg-slate-50 text-xs uppercase text-slate-500">
+        <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
+          <table className="w-full text-left text-sm text-slate-700 dark:text-slate-300">
+            <thead className="bg-slate-50 text-xs uppercase text-slate-500 dark:bg-slate-800 dark:text-slate-400">
               <tr>
                 <th className="px-4 py-2">Nombre</th>
                 <th className="px-4 py-2">Email</th>
@@ -215,7 +214,7 @@ export function UsersPage() {
                 <th className="px-4 py-2">Acciones</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
               {users.map((u) => {
                 const isSelf = u.id === currentUser?.id;
                 const busy = busyId === u.id;
@@ -225,44 +224,40 @@ export function UsersPage() {
                 const canManage = u.role !== 'super_admin' || currentUser?.role === 'super_admin';
                 return (
                   <tr key={u.id} className={u.is_active ? '' : 'opacity-50'}>
-                    <td className="px-4 py-2 font-medium text-slate-800">{u.full_name}</td>
-                    <td className="px-4 py-2 text-slate-600">{u.email}</td>
+                    <td className="px-4 py-2 font-medium text-slate-800 dark:text-slate-100">{u.full_name}</td>
+                    <td className="px-4 py-2 text-slate-600 dark:text-slate-400">{u.email}</td>
                     <td className="px-4 py-2">
                       {canManage ? (
                         <select
                           disabled={busy || isSelf}
                           value={u.role}
                           onChange={(e) => handleRoleChange(u, e.target.value as UserRole)}
-                          className="rounded border border-slate-300 px-1.5 py-1 text-xs disabled:opacity-50"
+                          className="rounded border border-slate-300 bg-white px-1.5 py-1 text-xs text-slate-700 disabled:opacity-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200"
                         >
-                          {(u.role === 'super_admin' ? ALL_ROLES : roleOptions).map(
-                            (r) => (
-                              <option key={r} value={r}>
-                                {ROLE_LABELS[r]}
-                              </option>
-                            )
-                          )}
+                          {(u.role === 'super_admin' ? ALL_ROLES : roleOptions).map((r) => (
+                            <option key={r} value={r}>
+                              {ROLE_LABELS[r]}
+                            </option>
+                          ))}
                         </select>
                       ) : (
                         ROLE_LABELS[u.role]
                       )}
                     </td>
-                    <td className="px-4 py-2 text-slate-600">{u.is_active ? 'Activo' : 'Inactivo'}</td>
+                    <td className="px-4 py-2 text-slate-600 dark:text-slate-400">
+                      {u.is_active ? 'Activo' : 'Inactivo'}
+                    </td>
                     <td className="px-4 py-2">
                       {canManage && (
                         <div className="flex gap-2">
-                          <button
-                            disabled={busy}
-                            onClick={() => startEdit(u)}
-                            className="rounded border border-slate-300 px-2 py-1 text-xs text-slate-600 hover:bg-slate-50 disabled:opacity-50"
-                          >
+                          <button disabled={busy} onClick={() => startEdit(u)} className={secondaryButtonClass}>
                             Editar
                           </button>
                           <button
                             disabled={busy || isSelf}
                             onClick={() => handleToggleActive(u)}
                             title={isSelf ? 'No puedes desactivarte a ti mismo.' : undefined}
-                            className="rounded border border-slate-300 px-2 py-1 text-xs text-slate-600 hover:bg-slate-50 disabled:opacity-50"
+                            className={secondaryButtonClass}
                           >
                             {u.is_active ? 'Desactivar' : 'Reactivar'}
                           </button>
@@ -274,7 +269,7 @@ export function UsersPage() {
               })}
               {users.length === 0 && (
                 <tr>
-                  <td colSpan={5} className="px-4 py-4 text-center text-slate-400">
+                  <td colSpan={5} className="px-4 py-4 text-center text-slate-400 dark:text-slate-500">
                     No hay usuarios todavía.
                   </td>
                 </tr>

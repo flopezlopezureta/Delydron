@@ -25,16 +25,17 @@ function formatEta(etaSeconds: number): string {
 }
 
 const STATUS_COLORS: Record<string, string> = {
-  draft: 'bg-slate-100 text-slate-700',
-  scheduled: 'bg-slate-100 text-slate-700',
-  assigned: 'bg-slate-100 text-slate-700',
-  in_progress: 'bg-blue-100 text-blue-700',
-  completed: 'bg-emerald-100 text-emerald-700',
-  aborted: 'bg-amber-100 text-amber-700',
-  failed: 'bg-red-100 text-red-700',
+  draft: 'bg-slate-100 text-slate-700 dark:bg-slate-700/60 dark:text-slate-300',
+  scheduled: 'bg-slate-100 text-slate-700 dark:bg-slate-700/60 dark:text-slate-300',
+  assigned: 'bg-slate-100 text-slate-700 dark:bg-slate-700/60 dark:text-slate-300',
+  in_progress: 'bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300',
+  completed: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300',
+  aborted: 'bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300',
+  failed: 'bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-300',
 };
+const cardClass = 'rounded-lg border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900';
 
-// Public, unauthenticated page — no NavBar/login, reachable straight from a
+// Public, unauthenticated page — no Sidebar/login, reachable straight from a
 // link shared with a client (see the "Copiar link de seguimiento" button in
 // MissionTable). Polls instead of using the SSE stream on purpose: that
 // stream is behind a JWT and broadcasts the whole fleet, neither of which
@@ -68,10 +69,13 @@ export function TrackingPage() {
 
   if (notFound) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-50 p-4">
+      <div className="flex min-h-screen items-center justify-center bg-slate-50 p-4 dark:bg-slate-950">
         <div className="max-w-sm text-center">
-          <h1 className="mb-2 text-lg font-semibold text-slate-800">Delydrone</h1>
-          <p className="text-sm text-slate-500">No encontramos esta misión. Verifica que el link esté completo.</p>
+          <img src="/logo.png" alt="Delydrone" className="mx-auto mb-2 h-12 w-12 rounded-lg object-contain" />
+          <h1 className="mb-2 text-lg font-semibold text-slate-800 dark:text-slate-100">Delydrone</h1>
+          <p className="text-sm text-slate-500 dark:text-slate-400">
+            No encontramos esta misión. Verifica que el link esté completo.
+          </p>
         </div>
       </div>
     );
@@ -79,8 +83,8 @@ export function TrackingPage() {
 
   if (!tracking) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-50 p-4">
-        <p className="text-sm text-slate-500">Cargando seguimiento...</p>
+      <div className="flex min-h-screen items-center justify-center bg-slate-50 p-4 dark:bg-slate-950">
+        <p className="text-sm text-slate-500 dark:text-slate-400">Cargando seguimiento...</p>
       </div>
     );
   }
@@ -89,81 +93,88 @@ export function TrackingPage() {
   const totalCount = tracking.waypoints.length;
 
   return (
-    <div className="min-h-screen bg-slate-50 p-4">
+    <div className="min-h-screen bg-slate-50 p-4 dark:bg-slate-950">
       <div className="mx-auto max-w-lg">
         <header className="mb-4 text-center">
-          <h1 className="text-lg font-semibold text-slate-800">Delydrone</h1>
-          <p className="text-xs text-slate-400">Seguimiento de envío por dron</p>
+          <img src="/logo.png" alt="Delydrone" className="mx-auto mb-2 h-10 w-10 rounded-lg object-contain" />
+          <h1 className="text-lg font-semibold text-slate-800 dark:text-slate-100">Delydrone</h1>
+          <p className="text-xs text-slate-400 dark:text-slate-500">Seguimiento de envío por dron</p>
         </header>
 
-        <div className="mb-4 rounded-lg border border-slate-200 bg-white p-4">
+        <div className={`mb-4 ${cardClass}`}>
           <div className="mb-2 flex items-center justify-between">
-            <span className="font-mono text-sm text-slate-700">{tracking.code}</span>
+            <span className="font-mono text-sm text-slate-700 dark:text-slate-300">{tracking.code}</span>
             <span
               className={`rounded-full px-3 py-1 text-xs font-medium ${
-                STATUS_COLORS[tracking.status] ?? 'bg-slate-100 text-slate-700'
+                STATUS_COLORS[tracking.status] ?? STATUS_COLORS.draft
               }`}
             >
               {STATUS_LABELS[tracking.status] ?? tracking.status}
             </span>
           </div>
           {tracking.abortReasonCode && (
-            <p className="text-xs text-slate-500">
+            <p className="text-xs text-slate-500 dark:text-slate-400">
               Motivo: {ABORT_REASON_LABELS[tracking.abortReasonCode] ?? tracking.abortReasonCode}
             </p>
           )}
           {tracking.droneName && tracking.status === 'in_progress' && (
-            <p className="text-xs text-slate-500">Dron: {tracking.droneName}</p>
+            <p className="text-xs text-slate-500 dark:text-slate-400">Dron: {tracking.droneName}</p>
           )}
-          <p className="mt-1 text-xs text-slate-400">
+          <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">
             {deliveredCount}/{totalCount} destinos entregados
           </p>
         </div>
 
-        <div className="mb-4 overflow-hidden rounded-lg border border-slate-200">
+        <div className="mb-4 overflow-hidden rounded-lg border border-slate-200 dark:border-slate-800">
           <TrackingMiniMap tracking={tracking} />
         </div>
 
         {tracking.live && (
-          <div className="mb-4 grid grid-cols-3 gap-2 rounded-lg border border-slate-200 bg-white p-4 text-center text-sm">
+          <div className={`mb-4 grid grid-cols-3 gap-2 text-center text-sm ${cardClass}`}>
             <div>
-              <div className="text-xs text-slate-400">Llegada estimada</div>
-              <div className="font-semibold text-slate-700">
+              <div className="text-xs text-slate-400 dark:text-slate-500">Llegada estimada</div>
+              <div className="font-semibold text-slate-700 dark:text-slate-200">
                 {tracking.live.etaSeconds != null ? formatEta(tracking.live.etaSeconds) : '—'}
               </div>
             </div>
             <div>
-              <div className="text-xs text-slate-400">Batería</div>
-              <div className="font-semibold text-slate-700">{tracking.live.batteryPct.toFixed(0)}%</div>
+              <div className="text-xs text-slate-400 dark:text-slate-500">Batería</div>
+              <div className="font-semibold text-slate-700 dark:text-slate-200">
+                {tracking.live.batteryPct.toFixed(0)}%
+              </div>
             </div>
             <div>
-              <div className="text-xs text-slate-400">Estado del dron</div>
-              <div className="font-semibold text-slate-700">{tracking.live.status}</div>
+              <div className="text-xs text-slate-400 dark:text-slate-500">Estado del dron</div>
+              <div className="font-semibold text-slate-700 dark:text-slate-200">{tracking.live.status}</div>
             </div>
           </div>
         )}
 
-        <div className="rounded-lg border border-slate-200 bg-white p-4">
-          <h2 className="mb-2 text-sm font-semibold text-slate-700">Entregas confirmadas</h2>
+        <div className={cardClass}>
+          <h2 className="mb-2 text-sm font-semibold text-slate-700 dark:text-slate-200">Entregas confirmadas</h2>
           {tracking.deliveries.length === 0 ? (
-            <p className="text-sm text-slate-400">Todavía no hay entregas confirmadas.</p>
+            <p className="text-sm text-slate-400 dark:text-slate-500">Todavía no hay entregas confirmadas.</p>
           ) : (
-            <ul className="divide-y divide-slate-100">
+            <ul className="divide-y divide-slate-100 dark:divide-slate-800">
               {tracking.deliveries.map((d) => {
                 const waypoint = tracking.waypoints.find((wp) => wp.seq === d.waypointSeq);
                 return (
                   <li key={d.confirmationCode ?? `${d.waypointSeq}-${d.deliveredAt}`} className="py-2 text-sm">
                     <div className="flex items-center justify-between">
-                      <span className="text-slate-700">
+                      <span className="text-slate-700 dark:text-slate-200">
                         {d.packageDesc || waypoint?.address || `Destino #${d.waypointSeq}`}
                       </span>
-                      <span className="text-xs text-slate-400">{new Date(d.deliveredAt).toLocaleString('es-CL')}</span>
+                      <span className="text-xs text-slate-400 dark:text-slate-500">
+                        {new Date(d.deliveredAt).toLocaleString('es-CL')}
+                      </span>
                     </div>
                     {d.packageDesc && waypoint?.address && (
-                      <div className="text-xs text-slate-400">{waypoint.address}</div>
+                      <div className="text-xs text-slate-400 dark:text-slate-500">{waypoint.address}</div>
                     )}
                     {d.confirmationCode && (
-                      <div className="mt-0.5 font-mono text-xs text-slate-400">Código: {d.confirmationCode}</div>
+                      <div className="mt-0.5 font-mono text-xs text-slate-400 dark:text-slate-500">
+                        Código: {d.confirmationCode}
+                      </div>
                     )}
                   </li>
                 );

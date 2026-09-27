@@ -37,31 +37,31 @@ export function ShareTrackingLinkDialog({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4">
-      <div className="w-full max-w-sm rounded-lg bg-white p-4 shadow-xl">
-        <h2 className="mb-1 text-sm font-semibold text-slate-800">
+      <div className="w-full max-w-sm rounded-lg bg-white p-4 shadow-xl dark:bg-slate-900">
+        <h2 className="mb-1 text-sm font-semibold text-slate-800 dark:text-slate-100">
           {title ?? 'Link de seguimiento'}
           {missionCode ? ` — ${missionCode}` : ''}
         </h2>
-        <p className="mb-3 text-xs text-slate-500">{description}</p>
+        <p className="mb-3 text-xs text-slate-500 dark:text-slate-400">{description}</p>
 
         <input
           ref={inputRef}
           readOnly
           value={url}
           onFocus={(e) => e.target.select()}
-          className="mb-3 w-full rounded border border-slate-300 px-2 py-1.5 font-mono text-xs text-slate-700"
+          className="mb-3 w-full rounded border border-slate-300 bg-white px-2 py-1.5 font-mono text-xs text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300"
         />
 
         <div className="flex justify-end gap-2">
           <button
             onClick={onClose}
-            className="rounded border border-slate-300 px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50"
+            className="rounded border border-slate-300 px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-800"
           >
             Cerrar
           </button>
           <button
             onClick={handleCopy}
-            className="rounded bg-slate-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-800"
+            className="rounded bg-brand px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-dark"
           >
             {copied ? '¡Copiado!' : 'Copiar'}
           </button>

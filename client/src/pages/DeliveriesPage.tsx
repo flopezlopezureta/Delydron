@@ -43,14 +43,14 @@ export function DeliveriesPage() {
 
   return (
     <div className="h-full overflow-y-auto p-4">
-      <h1 className="mb-4 text-lg font-semibold text-slate-800">Historial de despachos</h1>
+      <h1 className="mb-4 text-lg font-semibold text-slate-800 dark:text-slate-100">Historial de despachos</h1>
 
-      {loading && <div className="text-sm text-gray-500">Cargando historial...</div>}
-      {error && <div className="text-sm text-red-600">Error: {error}</div>}
+      {loading && <div className="text-sm text-gray-500 dark:text-slate-400">Cargando historial...</div>}
+      {error && <div className="text-sm text-red-600 dark:text-red-400">Error: {error}</div>}
       {!loading && !error && (
-        <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
-          <table className="w-full text-left text-sm">
-            <thead className="bg-slate-50 text-xs uppercase text-slate-500">
+        <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
+          <table className="w-full text-left text-sm text-slate-700 dark:text-slate-300">
+            <thead className="bg-slate-50 text-xs uppercase text-slate-500 dark:bg-slate-800 dark:text-slate-400">
               <tr>
                 <th className="px-4 py-2">Fecha / hora</th>
                 <th className="px-4 py-2">Misión</th>
@@ -61,10 +61,12 @@ export function DeliveriesPage() {
                 <th className="px-4 py-2">Código de entrega</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
               {deliveries.map((d) => (
                 <tr key={d.id}>
-                  <td className="px-4 py-2 text-slate-500">{new Date(d.delivered_at).toLocaleString('es-CL')}</td>
+                  <td className="px-4 py-2 text-slate-500 dark:text-slate-400">
+                    {new Date(d.delivered_at).toLocaleString('es-CL')}
+                  </td>
                   <td className="px-4 py-2 font-mono text-xs">
                     {d.mission_code ?? (d.mission_id ? missionCodeById[d.mission_id] ?? d.mission_id : '—')}
                   </td>
@@ -72,16 +74,18 @@ export function DeliveriesPage() {
                     {d.drone_name ?? (d.drone_id ? droneNameById[d.drone_id] ?? d.drone_id : '—')}
                   </td>
                   <td className="px-4 py-2">#{d.waypoint_seq}</td>
-                  <td className="px-4 py-2 font-mono text-xs text-slate-500">
+                  <td className="px-4 py-2 font-mono text-xs text-slate-500 dark:text-slate-400">
                     {d.lat.toFixed(5)}, {d.lon.toFixed(5)}
                   </td>
                   <td className="px-4 py-2">{d.package_desc ?? '—'}</td>
-                  <td className="px-4 py-2 font-mono text-xs text-slate-500">{d.confirmation_code ?? '—'}</td>
+                  <td className="px-4 py-2 font-mono text-xs text-slate-500 dark:text-slate-400">
+                    {d.confirmation_code ?? '—'}
+                  </td>
                 </tr>
               ))}
               {deliveries.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="px-4 py-4 text-center text-slate-400">
+                  <td colSpan={7} className="px-4 py-4 text-center text-slate-400 dark:text-slate-500">
                     Todavía no hay despachos entregados.
                   </td>
                 </tr>

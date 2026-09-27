@@ -43,7 +43,9 @@ export function WeatherStrip({ bases, maxWindKmh, maxPrecipitationMm }: WeatherS
           <div
             key={base.id}
             className={`rounded-lg px-2.5 py-1.5 text-xs shadow ${
-              risky ? 'bg-amber-100 text-amber-800' : 'bg-white/95 text-slate-600'
+              risky
+                ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/70 dark:text-amber-200'
+                : 'bg-white/95 text-slate-600 dark:bg-slate-900/95 dark:text-slate-300'
             }`}
             title={risky ? `${base.name}: fuera de los límites para despachar` : base.name}
           >

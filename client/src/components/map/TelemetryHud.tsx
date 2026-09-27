@@ -22,8 +22,8 @@ export function TelemetryHud({ drones, telemetryByDrone, missions }: TelemetryHu
   for (const m of missions) missionById[m.id] = m;
 
   return (
-    <div className="absolute right-3 top-3 z-[1000] w-72 rounded-lg bg-white/95 p-3 text-xs shadow-lg">
-      <div className="mb-2 font-semibold text-slate-700">Telemetría en vivo</div>
+    <div className="absolute right-3 top-3 z-[1000] w-72 rounded-lg bg-white/95 p-3 text-xs shadow-lg dark:bg-slate-900/95">
+      <div className="mb-2 font-semibold text-slate-700 dark:text-slate-200">Telemetría en vivo</div>
       <div className="space-y-2">
         {drones.map((drone) => {
           const t = telemetryByDrone[drone.id];
@@ -40,12 +40,12 @@ export function TelemetryHud({ drones, telemetryByDrone, missions }: TelemetryHu
             : null;
 
           return (
-            <div key={drone.id} className="rounded border border-slate-200 p-2">
+            <div key={drone.id} className="rounded border border-slate-200 p-2 dark:border-slate-700">
               <div className="flex items-center justify-between">
-                <span className="font-medium text-slate-800">{drone.name}</span>
-                <span className="uppercase text-slate-500">{status}</span>
+                <span className="font-medium text-slate-800 dark:text-slate-100">{drone.name}</span>
+                <span className="uppercase text-slate-500 dark:text-slate-400">{status}</span>
               </div>
-              <div className="mt-1 grid grid-cols-2 gap-x-2 text-slate-600">
+              <div className="mt-1 grid grid-cols-2 gap-x-2 text-slate-600 dark:text-slate-300">
                 <span>lat: {lat?.toFixed(5)}</span>
                 <span>lon: {lon?.toFixed(5)}</span>
                 <span>batería: {battery?.toFixed(1)}%</span>
@@ -53,7 +53,7 @@ export function TelemetryHud({ drones, telemetryByDrone, missions }: TelemetryHu
                 <span>altitud: {altitude.toFixed(0)}m</span>
               </div>
               {elapsedSeconds !== null && (
-                <div className="mt-1 grid grid-cols-2 gap-x-2 border-t border-slate-100 pt-1 text-slate-600">
+                <div className="mt-1 grid grid-cols-2 gap-x-2 border-t border-slate-100 pt-1 text-slate-600 dark:border-slate-800 dark:text-slate-300">
                   <span>vuelo: {formatDuration(elapsedSeconds)}</span>
                   <span>
                     {t?.status === 'unloading' ? 'descarga' : t?.phase === 'returning' ? 'regreso' : 'a destino'}:{' '}
@@ -64,7 +64,7 @@ export function TelemetryHud({ drones, telemetryByDrone, missions }: TelemetryHu
             </div>
           );
         })}
-        {drones.length === 0 && <div className="text-slate-400">Sin drones registrados.</div>}
+        {drones.length === 0 && <div className="text-slate-400 dark:text-slate-500">Sin drones registrados.</div>}
       </div>
     </div>
   );

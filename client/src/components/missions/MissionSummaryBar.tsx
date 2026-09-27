@@ -16,14 +16,14 @@ const GROUPS: { label: string; statuses: Mission['status'][]; dot: string }[] = 
 // attention right now, without having to go count rows in the Misiones tab.
 export function MissionSummaryBar({ missions }: MissionSummaryBarProps) {
   return (
-    <div className="absolute left-3 top-3 z-[1000] flex gap-2 rounded-lg bg-white/95 p-2 text-xs shadow-lg">
+    <div className="absolute left-3 top-3 z-[1000] flex gap-2 rounded-lg bg-white/95 p-2 text-xs shadow-lg dark:bg-slate-900/95">
       {GROUPS.map((g) => {
         const count = missions.filter((m) => g.statuses.includes(m.status)).length;
         return (
           <div key={g.label} className="flex items-center gap-1.5 rounded px-2 py-1">
             <span className={`h-2 w-2 rounded-full ${g.dot}`} />
-            <span className="font-semibold text-slate-800">{count}</span>
-            <span className="text-slate-500">{g.label}</span>
+            <span className="font-semibold text-slate-800 dark:text-slate-100">{count}</span>
+            <span className="text-slate-500 dark:text-slate-400">{g.label}</span>
           </div>
         );
       })}
