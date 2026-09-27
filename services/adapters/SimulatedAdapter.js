@@ -1,10 +1,11 @@
 const DroneAdapter = require('./DroneAdapter');
-const { haversineMeters, interpolateAlongPath, bearingDeg } = require('../../utils/geo');
+const { haversineMeters, interpolateAlongPath, bearingDeg, buildDetourPath } = require('../../utils/geo');
 const droneService = require('../droneService');
 const missionService = require('../missionService');
 const telemetryService = require('../telemetryService');
 const deliveryService = require('../deliveryService');
 const baseService = require('../baseService');
+const noFlyZoneService = require('../noFlyZoneService');
 const settingsService = require('../settingsService');
 const auditService = require('../auditService');
 const { publishTelemetry, publishDelivery } = require('../telemetryBus');
@@ -22,10 +23,18 @@ const ARRIVAL_EPSILON_M = 2;
 // Distance still to fly if the drone kept going as planned: from `current`
 // through whichever destinations are left, then the return leg. Recomputed
 // every tick to decide whether the battery can still finish the job — see
-// the diversion check in advanceFlight().
+// the diversion check in advanceFlight(). Threads in any no-fly-zone detour
+// already computed for the leg in progress (flight.viaPoints) so a route
+// that's being routed around a zone isn't under-counted as shorter than it
+// actually is; legs that haven't started yet still use the straight-line
+// distance, same approximation this always used.
 function remainingRouteMeters(flight, current) {
   let total = 0;
   let from = current;
+  for (const via of flight.viaPoints || []) {
+    total += haversineMeters(from, via);
+    from = via;
+  }
   for (let i = flight.targetIndex; i < flight.waypoints.length; i++) {
     const wp = flight.waypoints[i];
     total += haversineMeters(from, wp);
@@ -94,6 +103,20 @@ class SimulatedAdapter extends DroneAdapter {
     return null;
   }
 
+  // Any active no-fly zone between `from` and `to` gets routed around
+  // instead of flown straight through — see utils/geo.js#buildDetourPath
+  // and missionService's own pre-dispatch use of the same construction.
+  // Feasibility was already confirmed before dispatch, so `blocked` or
+  // `unresolved` here would only mean zones changed after that check; there's
+  // nothing sensible to do about that mid-tick, so it just flies direct
+  // rather than get stuck.
+  async computeViaPoints(from, to) {
+    const zones = await noFlyZoneService.listActive();
+    const { points, blocked, unresolved } = buildDetourPath(from, to, zones, missionService.NO_FLY_ZONE_MARGIN_M);
+    if (blocked || unresolved) return [];
+    return points.slice(1, -1);
+  }
+
   async startMission(droneId, missionRow) {
     const drone = await droneService.getById(droneId);
     if (!drone) throw new Error(`Unknown drone ${droneId}`);
@@ -113,12 +136,18 @@ class SimulatedAdapter extends DroneAdapter {
     // Otherwise go via the pickup base first if the mission has one linked.
     const phase = targetIndex === -1 ? 'returning' : pickupPoint ? 'picking_up' : 'delivering';
 
+    const current = { lat: drone.lat ?? drone.home_lat, lon: drone.lon ?? drone.home_lon };
+    const firstTarget =
+      phase === 'returning' ? returnPoint : phase === 'picking_up' ? pickupPoint : waypoints[targetIndex];
+    const viaPoints = await this.computeViaPoints(current, { lat: firstTarget.lat, lon: firstTarget.lon });
+
     this.flights.set(droneId, {
       missionId: missionRow.id,
       waypoints,
       targetIndex: targetIndex === -1 ? waypoints.length : targetIndex,
       speedMps,
       pickupPoint,
+      viaPoints,
       homeOnly: false,
       phase,
       returnPoint,
@@ -154,12 +183,15 @@ class SimulatedAdapter extends DroneAdapter {
       });
     }
 
+    const current = { lat: drone.lat ?? drone.home_lat, lon: drone.lon ?? drone.home_lon };
+    const home = { lat: drone.home_lat, lon: drone.home_lon };
     this.flights.set(droneId, {
       missionId: null,
       waypoints: [{ seq: 1, lat: drone.home_lat, lon: drone.home_lon, alt_m: 0 }],
       targetIndex: 0,
       speedMps: Number(drone.max_speed_mps) || DEFAULT_SPEED_MPS,
       homeOnly: true,
+      viaPoints: await this.computeViaPoints(current, home),
     });
     await droneService.updateStatus(droneId, 'returning');
   }
@@ -305,6 +337,14 @@ class SimulatedAdapter extends DroneAdapter {
         flight.phase = 'returning';
         await droneService.updateStatus(droneId, 'returning');
       }
+      // A new leg just started from right here (the drone hasn't moved
+      // during the discharge hold) — work out whether it needs to detour
+      // around a zone before flying any of it.
+      const nextTarget = isLastDestination ? flight.returnPoint : flight.waypoints[flight.targetIndex];
+      flight.viaPoints = await this.computeViaPoints(
+        { lat: drone.lat, lon: drone.lon },
+        { lat: nextTarget.lat, lon: nextTarget.lon }
+      );
     }
 
     const current = { lat: drone.lat, lon: drone.lon };
@@ -323,6 +363,10 @@ class SimulatedAdapter extends DroneAdapter {
       if (remainingM > availableM) {
         flight.phase = 'returning';
         flight.divertedForBattery = true;
+        // Redirecting mid-leg from wherever the drone currently is, not
+        // from a stop it hasn't reached yet — the old via-points (if any)
+        // were for the destination it's now abandoning.
+        flight.viaPoints = await this.computeViaPoints(current, flight.returnPoint);
         await auditService.log({
           action: 'system.low_battery_diversion',
           entityType: 'mission',
@@ -340,17 +384,42 @@ class SimulatedAdapter extends DroneAdapter {
           : flight.waypoints[flight.targetIndex];
     const targetPoint = { lat: target.lat, lon: target.lon };
 
-    const distRemaining = haversineMeters(current, targetPoint);
+    // Fly toward the next pending no-fly-zone detour stop if this leg has
+    // one, not straight at the real target — arriving there just means
+    // "next via-point" below, not "reached the destination" (see the
+    // dedicated arrived-at-real-target branches further down).
+    const atRealTarget = !(flight.viaPoints && flight.viaPoints.length > 0);
+    const flyTarget = atRealTarget ? targetPoint : flight.viaPoints[0];
+
+    // Distance (and so ETA) to the actual destination, via any remaining
+    // detour stops — kept separate from the immediate per-tick step below
+    // so the ETA counts down smoothly instead of resetting at each via-point.
+    let distToRealTarget = haversineMeters(current, flyTarget);
+    for (let i = 1; i < (flight.viaPoints || []).length; i++) {
+      distToRealTarget += haversineMeters(flight.viaPoints[i - 1], flight.viaPoints[i]);
+    }
+    if (!atRealTarget) distToRealTarget += haversineMeters(flight.viaPoints[flight.viaPoints.length - 1], targetPoint);
+
     // Nominal cruise speed, not this tick's (possibly zeroed-out-on-arrival
     // or battery-depleted) speed — an ETA that resets to null the instant
     // the drone arrives or dies is useless, this reflects "at normal speed".
-    const etaSeconds = flight.speedMps > 0 ? Math.round(distRemaining / flight.speedMps) : null;
+    const etaSeconds = flight.speedMps > 0 ? Math.round(distToRealTarget / flight.speedMps) : null;
     const stepDist = flight.speedMps * (TICK_MS / 1000);
-    const heading = bearingDeg(current, targetPoint);
-    const arrived = stepDist >= distRemaining - ARRIVAL_EPSILON_M;
-    const nextPoint = arrived
-      ? targetPoint
-      : interpolateAlongPath(current, targetPoint, stepDist / distRemaining);
+    const heading = bearingDeg(current, flyTarget);
+    const distToFlyTarget = haversineMeters(current, flyTarget);
+    const arrivedAtFlyTarget = stepDist >= distToFlyTarget - ARRIVAL_EPSILON_M;
+    const nextPoint = arrivedAtFlyTarget
+      ? flyTarget
+      : interpolateAlongPath(current, flyTarget, stepDist / distToFlyTarget);
+
+    // Only reaching the real destination counts as "arrived" for the
+    // phase-transition logic (and for the telemetry flag external clients
+    // react to) — passing a via-point just means one less detour stop left,
+    // handled right here rather than falling into any of those branches.
+    const arrived = arrivedAtFlyTarget && atRealTarget;
+    if (arrivedAtFlyTarget && !atRealTarget) {
+      flight.viaPoints.shift();
+    }
 
     const drainedBattery = Math.max(
       0,
@@ -385,6 +454,11 @@ class SimulatedAdapter extends DroneAdapter {
       // Package loaded — proceed to the real destinations. Status stays
       // 'in_flight' throughout, same as the leg before and after this one.
       flight.phase = 'delivering';
+      const firstDestination = flight.waypoints[flight.targetIndex];
+      flight.viaPoints = await this.computeViaPoints(nextPoint, {
+        lat: firstDestination.lat,
+        lon: firstDestination.lon,
+      });
     } else if (arrived && flight.phase === 'delivering') {
       // Reaching a real destination opens that bay's discharge gate and
       // logs the delivery, then holds here for SIM_DISCHARGE_SECONDS before

@@ -3,6 +3,7 @@ import { useAuth } from '../hooks/useAuth';
 import { useNoFlyZones } from '../hooks/useNoFlyZones';
 import { createNoFlyZone, updateNoFlyZone, deleteNoFlyZone } from '../api/noFlyZones';
 import { NoFlyZonePickerMap } from '../components/noFlyZones/NoFlyZonePickerMap';
+import { NoFlyZonesOverviewMap } from '../components/noFlyZones/NoFlyZonesOverviewMap';
 import { AddressAutocomplete } from '../components/missions/AddressAutocomplete';
 import type { AddressSuggestion } from '../api/geocoding';
 import type { NoFlyZone } from '../types';
@@ -30,6 +31,7 @@ export function NoFlyZonesPage() {
   const [submitting, setSubmitting] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [rowError, setRowError] = useState<string | null>(null);
+  const [selectedZoneId, setSelectedZoneId] = useState<string | null>(null);
 
   function resetForm() {
     setName('');
@@ -189,6 +191,20 @@ export function NoFlyZonesPage() {
         </div>
       )}
 
+      {!showForm && !loading && zones.length > 0 && (
+        <>
+          <div
+            className="mb-1 overflow-hidden rounded-lg border border-slate-200 dark:border-slate-800"
+            style={{ height: 320 }}
+          >
+            <NoFlyZonesOverviewMap zones={zones} selectedId={selectedZoneId} onSelect={setSelectedZoneId} />
+          </div>
+          <p className="mb-4 text-xs text-slate-400 dark:text-slate-500">
+            Elige una zona en la tabla o toca su círculo en el mapa para ubicarla.
+          </p>
+        </>
+      )}
+
       {loading && <div className="text-sm text-gray-500 dark:text-slate-400">Cargando zonas...</div>}
       {error && <div className="text-sm text-red-600 dark:text-red-400">Error: {error}</div>}
       {rowError && <div className="mb-3 text-sm text-red-600 dark:text-red-400">{rowError}</div>}
@@ -207,7 +223,15 @@ export function NoFlyZonesPage() {
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
               {zones.map((z) => (
-                <tr key={z.id}>
+                <tr
+                  key={z.id}
+                  onClick={() => setSelectedZoneId(z.id)}
+                  className={`cursor-pointer ${
+                    z.id === selectedZoneId
+                      ? 'bg-blue-50 dark:bg-blue-950/40'
+                      : 'hover:bg-slate-50 dark:hover:bg-slate-800/60'
+                  }`}
+                >
                   <td className="px-4 py-2 font-medium text-slate-800 dark:text-slate-100">{z.name}</td>
                   <td className="px-4 py-2 text-slate-600 dark:text-slate-400">{Number(z.radius_m).toFixed(0)} m</td>
                   <td className="px-4 py-2 font-mono text-xs text-slate-500 dark:text-slate-400">
@@ -225,7 +249,7 @@ export function NoFlyZonesPage() {
                     </span>
                   </td>
                   <td className="px-4 py-2 text-slate-500 dark:text-slate-400">{z.notes ?? '—'}</td>
-                  <td className="px-4 py-2">
+                  <td className="px-4 py-2" onClick={(e) => e.stopPropagation()}>
                     {isAdmin ? (
                       <div className="flex flex-wrap gap-2">
                         <button disabled={busyId === z.id} onClick={() => startEdit(z)} className={secondaryButtonClass}>

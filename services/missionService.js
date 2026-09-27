@@ -1,11 +1,17 @@
 const crypto = require('crypto');
 const db = require('../db');
 const { publishMissionStatus } = require('./telemetryBus');
-const { haversineMeters, distanceToSegmentMeters } = require('../utils/geo');
+const { haversineMeters, buildDetourPath } = require('../utils/geo');
 const settingsService = require('./settingsService');
 const baseService = require('./baseService');
 const noFlyZoneService = require('./noFlyZoneService');
 const weatherService = require('./weatherService');
+
+// Extra clearance a planned route keeps beyond a zone's own configured
+// radius when routing around it — see utils/geo.js#buildDetourPath. Not
+// operator-facing (unlike the zone radius itself): this is routing
+// conservatism, not a property of any one zone.
+const NO_FLY_ZONE_MARGIN_M = 30;
 
 // Every waypoint (destination) gets its own stable, unguessable token —
 // "Punto de Entrega" (PE), distinct from a base and from the mission-wide
@@ -243,87 +249,97 @@ async function updateStatus(id, status, { notes, reasonCode } = {}) {
   return mission;
 }
 
-// Every leg of the route the mission will actually fly, in order: an
-// optional pickup leg, then each destination, then the return leg — the
-// same path SimulatedAdapter flies. Shared by the range/battery check and
-// the no-fly-zone check below so both agree on what "the route" means.
-async function resolveRouteLegs(mission, drone) {
-  const start = { lat: drone.lat ?? drone.home_lat, lon: drone.lon ?? drone.home_lon };
-  const legs = [];
-  let from = start;
+// Every stop the mission's route touches, in order: the drone's current
+// position, an optional pickup base, each destination, then the return
+// point — the same stops SimulatedAdapter flies between.
+async function resolveRoutePoints(mission, drone) {
+  const points = [{ lat: drone.lat ?? drone.home_lat, lon: drone.lon ?? drone.home_lon }];
 
   if (mission.pickup_base_id) {
     const base = await baseService.getById(mission.pickup_base_id);
-    if (base) {
-      const point = { lat: base.lat, lon: base.lon };
-      legs.push([from, point]);
-      from = point;
-    }
+    if (base) points.push({ lat: base.lat, lon: base.lon });
   }
 
   const waypoints = [...(mission.waypoints || [])].sort((a, b) => a.seq - b.seq);
-  for (const wp of waypoints) {
-    const point = { lat: wp.lat, lon: wp.lon };
-    legs.push([from, point]);
-    from = point;
-  }
+  for (const wp of waypoints) points.push({ lat: wp.lat, lon: wp.lon });
 
   let returnPoint = { lat: drone.home_lat, lon: drone.home_lon };
   if (mission.return_base_id) {
     const base = await baseService.getById(mission.return_base_id);
     if (base) returnPoint = { lat: base.lat, lon: base.lon };
   }
-  legs.push([from, returnPoint]);
+  points.push(returnPoint);
 
-  return legs;
+  return points;
 }
 
-async function plannedRouteMeters(mission, drone) {
-  const legs = await resolveRouteLegs(mission, drone);
-  return legs.reduce((total, [a, b]) => total + haversineMeters(a, b), 0);
+// Every leg of the route the mission will actually fly, in order — each
+// hop between consecutive stops expanded to route around any active
+// no-fly zone it would otherwise cut through (see
+// utils/geo.js#buildDetourPath) instead of just refusing the mission.
+// Shared by the range/battery check below and by SimulatedAdapter's actual
+// flight, so both agree on what "the route" means. `blockedReason` is set
+// only when some stop is unreachable outright — it sits inside a zone
+// itself, so there's nothing to route around.
+async function resolveRouteLegs(mission, drone) {
+  const points = await resolveRoutePoints(mission, drone);
+  const zones = await noFlyZoneService.listActive();
+
+  const expanded = [points[0]];
+  let blockedReason = null;
+  for (let i = 1; i < points.length && !blockedReason; i++) {
+    const from = expanded[expanded.length - 1];
+    const to = points[i];
+    const { points: legPoints, blocked, blockedZone, unresolved } = buildDetourPath(
+      from,
+      to,
+      zones,
+      NO_FLY_ZONE_MARGIN_M
+    );
+    if (blocked) {
+      blockedReason = `Un punto de la ruta cae dentro de la zona restringida "${blockedZone.name}" (radio ${Number(blockedZone.radius_m).toFixed(0)} m) — no se puede evitar una zona que contiene el propio punto.`;
+    } else if (unresolved) {
+      blockedReason = 'No fue posible calcular una ruta que evite todas las zonas restringidas activas.';
+    } else {
+      expanded.push(...legPoints.slice(1));
+    }
+  }
+
+  const legs = [];
+  for (let i = 1; i < expanded.length; i++) legs.push([expanded[i - 1], expanded[i]]);
+  return { legs, blockedReason };
 }
 
-// Checks a set of route legs against every active no-fly zone, returning a
-// human-readable reason for the first breach, or null if the route is clear.
-async function checkLegsAgainstNoFlyZones(legs) {
+// Create/update-time check — a drone isn't necessarily assigned yet at that
+// point, so there's no route to plan a detour around, only the fixed
+// destinations themselves. A leg merely passing near a zone is no longer
+// blocked here: once a drone is dispatched, SimulatedAdapter (and the
+// feasibility check below) route around that automatically. The one thing
+// that truly can't be fixed by routing is a destination that sits inside a
+// zone to begin with — nothing can reach it without entering the zone.
+async function checkWaypointsAgainstNoFlyZones(waypoints) {
   const zones = await noFlyZoneService.listActive();
   if (!zones.length) return null;
 
-  for (const zone of zones) {
-    for (const [a, b] of legs) {
-      const distance = distanceToSegmentMeters(zone, a, b);
-      if (distance < Number(zone.radius_m)) {
-        return `La ruta pasa por la zona restringida "${zone.name}" (radio ${Number(zone.radius_m).toFixed(0)} m).`;
+  for (const wp of waypoints || []) {
+    for (const zone of zones) {
+      if (haversineMeters(wp, { lat: zone.lat, lon: zone.lon }) < Number(zone.radius_m)) {
+        return `El destino #${wp.seq} está dentro de la zona restringida "${zone.name}" (radio ${Number(zone.radius_m).toFixed(0)} m) — no se puede evitar una zona que contiene el propio destino.`;
       }
     }
   }
   return null;
 }
 
-// Create/update-time check — a drone isn't necessarily assigned yet at that
-// point, so only the destination-to-destination legs are known, but that's
-// still enough to catch a route drawn straight through a restricted zone
-// before it's ever dispatched (dispatch re-checks the full route, pickup
-// and return legs included, once a drone is attached).
-async function checkWaypointsAgainstNoFlyZones(waypoints) {
-  const sorted = [...(waypoints || [])].sort((a, b) => a.seq - b.seq);
-  const legs = [];
-  for (let i = 1; i < sorted.length; i++) {
-    legs.push([
-      { lat: sorted[i - 1].lat, lon: sorted[i - 1].lon },
-      { lat: sorted[i].lat, lon: sorted[i].lon },
-    ]);
-  }
-  if (!legs.length) return null;
-  return checkLegsAgainstNoFlyZones(legs);
-}
-
 // Pre-dispatch safety gate: refuses to launch a mission whose planned route
-// exceeds the drone's rated range, exceeds what its current battery can
-// cover while holding back the configured reserve, or passes through an
-// active no-fly zone. Returns null when clear, or a human-readable reason.
+// (after routing around any active no-fly zone in the way) exceeds the
+// drone's rated range, exceeds what its current battery can cover while
+// holding back the configured reserve, or simply can't avoid a zone at all.
+// Returns null when clear, or a human-readable reason.
 async function checkDispatchFeasible(mission, drone) {
-  const legs = await resolveRouteLegs(mission, drone);
+  const { legs, blockedReason } = await resolveRouteLegs(mission, drone);
+  if (blockedReason) return blockedReason;
+
   const routeM = legs.reduce((total, [a, b]) => total + haversineMeters(a, b), 0);
 
   const maxRangeM = Number(drone.max_range_km) * 1000;
@@ -339,9 +355,6 @@ async function checkDispatchFeasible(mission, drone) {
   if (routeM > availableM) {
     return `La batería actual (${Number(drone.battery_pct).toFixed(0)}%) no alcanza para completar la ruta (${(routeM / 1000).toFixed(1)} km) y volver dejando ${reservePct}% de reserva.`;
   }
-
-  const zoneReason = await checkLegsAgainstNoFlyZones(legs);
-  if (zoneReason) return zoneReason;
 
   // Checked at the drone's current position (its takeoff point), not
   // averaged across the whole route — weather is time-varying, so this is
@@ -422,6 +435,7 @@ module.exports = {
   updateStatus,
   checkDispatchFeasible,
   checkWaypointsAgainstNoFlyZones,
+  NO_FLY_ZONE_MARGIN_M,
   list,
   create,
   update,
