@@ -12,6 +12,7 @@ const { bus } = require('./services/telemetryBus');
 const { initAdapter } = require('./services/adapterRegistry');
 const missionService = require('./services/missionService');
 const userService = require('./services/userService');
+const versionService = require('./services/versionService');
 const { errorHandler } = require('./middleware/errorHandler');
 
 const PORT = process.env.PORT || 3000;
@@ -50,6 +51,7 @@ app.use(
 );
 
 app.get('/api/health', (req, res) => res.json({ status: 'ok' }));
+app.get('/api/version', (req, res) => res.json({ version: versionService.getCachedVersion() }));
 
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/users', require('./routes/users'));
@@ -78,6 +80,7 @@ app.use(errorHandler);
 
 async function start() {
   await applySchema();
+  await versionService.bumpAndGetVersion();
   await userService.bootstrapAdminFromEnv();
 
   const adapter = initAdapter({ bus, pool: getPool() });

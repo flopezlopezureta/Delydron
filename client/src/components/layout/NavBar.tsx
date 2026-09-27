@@ -1,18 +1,26 @@
+import { useEffect, useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
+import { apiFetch } from '../../api/client';
 import { ROLE_LABELS } from '../../types';
 
 const linkClass = ({ isActive }: { isActive: boolean }) =>
   `rounded px-3 py-1 text-sm ${isActive ? 'bg-slate-700 text-white' : 'text-slate-300 hover:bg-slate-800'}`;
 
-// Baked in at Docker build time (see Dockerfile) — MAJOR.MINOR bumped by
-// hand for real milestones, PATCH is the commit count so every deploy gets
-// a new number with no manual step. Falls back to "dev" locally, where
-// that build step never runs.
-const APP_VERSION = import.meta.env.VITE_APP_VERSION || 'dev';
-
 export function NavBar() {
   const { user, logout } = useAuth();
+  // Counted server-side in Postgres and bumped once per boot (see
+  // versionService.js) — a Docker build can't count "builds so far" on its
+  // own (each one starts from nothing), so this can't be a build-time
+  // constant; it has to come from somewhere that actually persists across
+  // deploys, which for this app is the database it already has.
+  const [appVersion, setAppVersion] = useState('...');
+
+  useEffect(() => {
+    apiFetch<{ version: string | null }>('/api/version', { skipAuthRedirect: true })
+      .then((data) => setAppVersion(data.version || 'dev'))
+      .catch(() => setAppVersion('dev'));
+  }, []);
 
   return (
     <header className="flex items-center justify-between bg-slate-900 px-4 py-3 text-white">
@@ -60,7 +68,7 @@ export function NavBar() {
             {user.fullName} · {ROLE_LABELS[user.role]}
           </span>
           <span className="text-xs text-slate-500" title="Versión de la app">
-            v{APP_VERSION}
+            v{appVersion}
           </span>
           <button
             onClick={logout}

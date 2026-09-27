@@ -3,13 +3,6 @@ WORKDIR /app/client
 COPY client/package*.json ./
 RUN npm install
 COPY client/ ./
-# Auto-incrementing build version: MAJOR.MINOR are bumped by hand for real
-# milestones, PATCH is the build timestamp so every deploy gets a new,
-# always-increasing number with no manual step. Deliberately not based on
-# git history — Coolify's own repo import strips .git before Docker ever
-# sees the build context, regardless of .dockerignore, so a commit count
-# isn't reachable from here.
-RUN echo "VITE_APP_VERSION=1.1.$(date +%Y%m%d%H%M)" > .env.production
 RUN npm run build
 
 FROM node:22-alpine AS runner
