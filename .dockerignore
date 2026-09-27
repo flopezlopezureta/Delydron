@@ -4,4 +4,5 @@ client/dist
 dist
 .env
 client/.env
+.git
 *.log
