@@ -123,6 +123,11 @@ export function BasesPage() {
     <div className="h-full overflow-y-auto p-4">
       <div className="mb-4 flex items-center justify-between">
         <h1 className="text-lg font-semibold text-slate-800">Bases de despacho</h1>
+        {kindFilter && (
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+            {BASE_KIND_LABELS[kindFilter]}
+          </p>
+        )}
         {isAdmin && !showForm && (
           <button
             onClick={() => setShowForm(true)}
